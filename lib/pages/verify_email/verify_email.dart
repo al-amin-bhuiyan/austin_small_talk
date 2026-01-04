@@ -10,8 +10,13 @@ import 'verify_email_controller.dart';
 
 class VerifyEmailScreen extends StatelessWidget {
   final dynamic flag;
+  final String? email;
 
-  const VerifyEmailScreen({Key? key, required this.flag}) : super(key: key);
+  const VerifyEmailScreen({
+    Key? key,
+    required this.flag,
+    this.email,
+  }) : super(key: key);
 
 
 
@@ -22,6 +27,11 @@ class VerifyEmailScreen extends StatelessWidget {
     // Set the flag value in controller
     if (flag != null) {
       controller.flag.value = flag == 'true';
+    }
+
+    // Set the email value in controller if provided
+    if (email != null && email!.isNotEmpty) {
+      controller.email.value = email!;
     }
 
     return Scaffold(
@@ -157,6 +167,42 @@ class VerifyEmailScreen extends StatelessWidget {
                     label: 'Verify',
                     onPressed:()=> controller.onVerifyPressed(context),
                     isLoading: controller.isLoading.value,
+                  ),
+                ),
+
+                SizedBox(height: 24.h),
+
+                // Resend OTP Section
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Didn't receive any code? ",
+                        style: AppFonts.poppinsRegular(
+                          fontSize: 14,
+                          color: AppColors.whiteColor.withAlpha(200),
+                        ),
+                      ),
+                      Obx(
+                        () => GestureDetector(
+                          onTap: !controller.isResending.value
+                              ? () => controller.onResendCode(context) 
+                              : null,
+                          child: Text(
+                            controller.isResending.value
+                                ? 'Resend in ${controller.resendTimer.value}s'
+                                : 'Resend OTP',
+                            style: AppFonts.poppinsSemiBold(
+                              fontSize: 14,
+                              color: controller.isResending.value
+                                  ? AppColors.whiteColor.withAlpha(150)
+                                  : AppColors.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 

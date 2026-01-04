@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:intl/number_symbols_data.dart';
 import '../../core/custom_assets/custom_assets.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
@@ -114,7 +113,7 @@ class CreateAccountScreen extends StatelessWidget {
                       value: controller.selectedDay.value.isEmpty ? null : controller.selectedDay.value,
                       items: controller.getDaysList(),
                       onChanged: (value) {
-                        if (value != null) controller.setDay(value);
+                        if (value != null) controller.setDay(value, context);
                       },
                     ),
                   ),
@@ -128,7 +127,7 @@ class CreateAccountScreen extends StatelessWidget {
                       value: controller.selectedMonth.value.isEmpty ? null : controller.selectedMonth.value,
                       items: controller.months,
                       onChanged: (value) {
-                        if (value != null) controller.setMonth(value);
+                        if (value != null) controller.setMonth(value,context);
                       },
                     ),
                   ),
@@ -142,7 +141,7 @@ class CreateAccountScreen extends StatelessWidget {
                       value: controller.selectedYear.value.isEmpty ? null : controller.selectedYear.value,
                       items: controller.getYearsList(),
                       onChanged: (value) {
-                        if (value != null) controller.setYear(value);
+                        if (value != null) controller.setYear(value,context);
                       },
                     ),
                   ),

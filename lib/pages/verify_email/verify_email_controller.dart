@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../utils/toast_message/toast_message.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/models/verify_otp_request_model.dart';
+import '../../service/auth/models/resend_otp_request_model.dart';
+import '../../utils/custom_snackbar/custom_snackbar.dart';
 
 /// Controller for VerifyEmailScreen - handles email verification logic
 class VerifyEmailController extends GetxController {
@@ -23,6 +26,14 @@ class VerifyEmailController extends GetxController {
   // Observable states
   final RxBool isLoading = false.obs;
   final RxString email = ''.obs;
+  
+  // Resend OTP timer
+  final RxInt resendTimer = 60.obs;
+  final RxBool isResending = false.obs; // true when counting down
+  Timer? _timer;
+
+  // API Service
+  final ApiServices _apiServices = ApiServices();
 
   @override
   void onInit() {
@@ -37,6 +48,8 @@ class VerifyEmailController extends GetxController {
 
   @override
   void onClose() {
+    // Dispose timer
+    _timer?.cancel();
     // Dispose all controllers and focus nodes
     for (var controller in otpControllers) {
       controller.dispose();
@@ -81,9 +94,10 @@ class VerifyEmailController extends GetxController {
   /// Handle verify button press
   Future<void> onVerifyPressed(BuildContext context) async {
     if (!isOtpComplete()) {
-      ToastMessage.error(
-        'Please enter all 6 digits',
+      CustomSnackbar.error(
+        context: context,
         title: 'Incomplete Code',
+        message: 'Please enter all 6 digits',
       );
       return;
     }
@@ -93,50 +107,128 @@ class VerifyEmailController extends GetxController {
 
       String otpCode = getOtpCode();
 
-      // TODO: Implement your OTP verification API call here
-      // Example: await verifyOtpApi(email: email.value, otp: otpCode);
-      await Future.delayed(const Duration(seconds: 2)); // Simulating API call
-
-      ToastMessage.success(
-        'Email verified successfully with code: $otpCode',
+      // Create verify OTP request
+      final request = VerifyOtpRequestModel(
+        email: email.value,
+        otp: otpCode,
       );
 
-      // Navigate to next screen (e.g., home)
-      // Get.offAllNamed(AppPath.home);
-      if(flag.value){
-        context.push(AppPath.createNewPassword);
+      // Call API
+      final response = await _apiServices.verifyOtp(request);
+
+      if (context.mounted) {
+        CustomSnackbar.success(
+          context: context,
+          title: 'Success',
+          message: response.message,
+        );
       }
-      else{
-        context.push(AppPath.verifiedfromverifyemail);
+
+      // Navigate to next screen based on flag
+      if (context.mounted) {
+        if (flag.value) {
+          // From forgot password flow
+          context.push(AppPath.createNewPassword);
+        } else {
+          // From signup flow
+          context.push(AppPath.verifiedfromverifyemail);
+        }
       }
     } catch (e) {
-      ToastMessage.error(
-        'Verification failed: ${e.toString()}',
-      );
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      
+      if (!context.mounted) return;
+      
+      // Check if it's an invalid OTP error
+      if (errorMessage.toLowerCase().contains('invalid') && 
+          errorMessage.toLowerCase().contains('otp')) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Invalid OTP',
+          message: errorMessage,
+        );
+      } else if (errorMessage.toLowerCase().contains('expired') && 
+                 errorMessage.toLowerCase().contains('otp')) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'OTP Expired',
+          message: errorMessage,
+        );
+      } else {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Verification Failed',
+          message: errorMessage,
+        );
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
   /// Resend verification code
-  Future<void> onResendCode() async {
+  Future<void> onResendCode(BuildContext context) async {
+    if (isResending.value) return;
+    
     try {
-      // TODO: Implement resend code API call
-      await Future.delayed(const Duration(seconds: 1));
-
-      ToastMessage.success(
-        'Verification code sent to ${email.value}',
+      // Start countdown immediately
+      _startResendTimer();
+      
+      // Create resend OTP request
+      final request = ResendOtpRequestModel(
+        email: email.value,
       );
+      
+      // Call API
+      final response = await _apiServices.resendOtp(request);
 
-      // Clear existing OTP
-      for (var controller in otpControllers) {
-        controller.clear();
+      if (context.mounted) {
+        CustomSnackbar.success(
+          context: context,
+          title: 'OTP Sent',
+          message: response.message,
+        );
       }
-      focusNodes[0].requestFocus();
+      
     } catch (e) {
-      ToastMessage.error(
-        'Failed to resend code: ${e.toString()}',
-      );
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      
+      if (!context.mounted) return;
+      
+      // Check if account is already activated
+      if (errorMessage.toLowerCase().contains('already activated')) {
+        CustomSnackbar.info(
+          context: context,
+          title: 'Account Already Activated',
+          message: errorMessage,
+        );
+      } else {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Failed',
+          message: errorMessage,
+        );
+      }
+      
+      // Stop timer if there's an error
+      _timer?.cancel();
+      isResending.value = false;
     }
+  }
+  
+  /// Start countdown timer
+  void _startResendTimer() {
+    isResending.value = true;
+    resendTimer.value = 60;
+    
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (resendTimer.value > 0) {
+        resendTimer.value--;
+      } else {
+        isResending.value = false;
+        timer.cancel();
+      }
+    });
   }
 }

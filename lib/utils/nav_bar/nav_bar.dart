@@ -23,12 +23,19 @@ class CustomNavBar extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 50.w, vertical: 10.h),
       padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 8.h),
       decoration: BoxDecoration(
-        //color: const Color(0xFF1A1F3A),
         borderRadius: BorderRadius.circular(40.r),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.15),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.9),
+            offset: Offset(0, 4),
+            blurRadius: 6,
+            spreadRadius: 3,
+          ),
+        ],
       ),
 
       child: Row(

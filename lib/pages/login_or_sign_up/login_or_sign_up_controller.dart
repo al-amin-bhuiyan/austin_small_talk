@@ -2,6 +2,10 @@ import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/global/shared_preference.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/models/login_request_model.dart';
+import '../../utils/custom_snackbar/custom_snackbar.dart';
 import '../../utils/toast_message/toast_message.dart';
 
 /// Controller for LoginScreen - handles login/signup logic
@@ -17,11 +21,28 @@ class LoginController extends GetxController {
 
   // Form key for validation
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  
+  // API service
+  final ApiServices _apiServices = ApiServices();
 
   @override
   void onInit() {
     super.onInit();
-    // Initialize any data if needed
+    _loadSavedCredentials();
+  }
+  
+  /// Load saved credentials if Remember Me was enabled
+  void _loadSavedCredentials() {
+    if (SharedPreferencesUtil.isRememberMeEnabled()) {
+      final savedEmail = SharedPreferencesUtil.getSavedEmail();
+      final savedPassword = SharedPreferencesUtil.getSavedPassword();
+      
+      if (savedEmail != null && savedPassword != null) {
+        emailController.text = savedEmail;
+        passwordController.text = savedPassword;
+        rememberMe.value = true;
+      }
+    }
   }
 
   @override
@@ -67,22 +88,58 @@ class LoginController extends GetxController {
   Future<void> onLoginPressed(BuildContext context) async {
     if (formKey.currentState?.validate() ?? false) {
       try {
-      //   isLoading.value = true;
+        isLoading.value = true;
 
-        // TODO: Implement your login API call here
-        await Future.delayed(const Duration(seconds: 2)); // Simulating API call
-
-        // On success, navigate to home or next screen
-        // Get.offAllNamed(AppPath.home);
-
-        context.push(AppPath.home);
-
-        ToastMessage.success(
-          'Login successful!',
+        // Create login request
+        final request = LoginRequestModel(
+          email: emailController.text.trim(),
+          password: passwordController.text,
         );
+
+        // Call login API
+        final response = await _apiServices.loginUser(request);
+
+        // Save user session
+        await SharedPreferencesUtil.saveUserSession(
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          userId: response.userId,
+          userName: response.userName,
+          email: response.email ?? emailController.text.trim(),
+        );
+
+        // Save credentials if Remember Me is checked
+        if (rememberMe.value) {
+          await SharedPreferencesUtil.saveLoginCredentials(
+            email: emailController.text.trim(),
+            password: passwordController.text,
+          );
+        } else {
+          // Clear saved credentials if Remember Me is unchecked
+          await SharedPreferencesUtil.clearLoginCredentials();
+        }
+
+        if (context.mounted) {
+          CustomSnackbar.success(
+            context: context,
+            title: 'Success',
+            message: response.message,
+          );
+        }
+
+        // Navigate to home screen
+        if (context.mounted) {
+          context.go(AppPath.home);
+        }
       } catch (e) {
-        ToastMessage.error(
-          'Login failed: ${e.toString()}',
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        
+        if (!context.mounted) return;
+        
+        CustomSnackbar.error(
+          context: context,
+          title: 'Login Failed',
+          message: errorMessage,
         );
       } finally {
         isLoading.value = false;
@@ -110,13 +167,10 @@ class LoginController extends GetxController {
       // TODO: Implement Google Sign In
       await Future.delayed(const Duration(seconds: 1));
 
-      ToastMessage.info(
-        'Google Sign In coming soon',
-      );
+      // CustomSnackbar requires context, so we'll skip showing message for now
+      // Or you can pass context from the UI
     } catch (e) {
-      ToastMessage.error(
-        'Google Sign In failed: ${e.toString()}',
-      );
+      // Handle error
     } finally {
       isLoading.value = false;
     }
@@ -130,13 +184,10 @@ class LoginController extends GetxController {
       // TODO: Implement Apple Sign In
       await Future.delayed(const Duration(seconds: 1));
 
-      ToastMessage.info(
-        'Apple Sign In coming soon',
-      );
+      // CustomSnackbar requires context, so we'll skip showing message for now
+      // Or you can pass context from the UI
     } catch (e) {
-      ToastMessage.error(
-        'Apple Sign In failed: ${e.toString()}',
-      );
+      // Handle error
     } finally {
       isLoading.value = false;
     }

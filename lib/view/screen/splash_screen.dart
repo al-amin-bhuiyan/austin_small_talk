@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/custom_assets/custom_assets.dart';
 import '../../global/controller/splash_controller.dart';
 import '../../core/app_route/app_path.dart';
+import '../../data/global/shared_preference.dart';
+import '../../data/global/token_manager.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -19,9 +21,26 @@ class SplashScreen extends StatelessWidget {
     // Only navigate once using static flag
     if (!_hasNavigated) {
       _hasNavigated = true;
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 3), () async {
         if (context.mounted) {
-          context.push(AppPath.login);
+          // Check if user is logged in and has valid token
+          final isLoggedIn = SharedPreferencesUtil.isLoggedIn();
+          
+          if (isLoggedIn) {
+            // Validate token
+            final hasValidSession = await TokenManager.hasValidSession();
+            
+            if (hasValidSession) {
+              // User has valid session, go to home
+              context.go(AppPath.home);
+            } else {
+              // Token is invalid and couldn't be refreshed, go to login
+              context.push(AppPath.login);
+            }
+          } else {
+            // User is not logged in, go to login screen
+            context.push(AppPath.login);
+          }
         }
       });
     }

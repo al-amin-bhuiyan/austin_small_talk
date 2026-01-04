@@ -2,6 +2,8 @@ import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
+import 'package:toastification/toastification.dart';
+import '../../utils/custom_snackbar/custom_snackbar.dart';
 import '../../utils/toast_message/toast_message.dart';
 
 /// Controller for CreateAccountScreen - handles sign up logic
@@ -17,6 +19,12 @@ class CreateAccountController extends GetxController {
   final RxString selectedDay = ''.obs;
   final RxString selectedMonth = ''.obs;
   final RxString selectedYear = ''.obs;
+
+  // Store registration data temporarily
+  String? tempEmail;
+  String? tempName;
+  String? tempPassword;
+  String? tempDateOfBirth;
 
   // Form key for validation
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -62,35 +70,62 @@ class CreateAccountController extends GetxController {
   }
 
   // Update selected month
-  void setMonth(String month) {
+  void setMonth(String month,BuildContext context) {
     selectedMonth.value = month;
-    // Reset day if it exceeds the new month's max days
-    if (selectedDay.value.isNotEmpty) {
+    
+    // Validate date if all fields are selected
+    if (selectedDay.value.isNotEmpty && selectedMonth.value.isNotEmpty && selectedYear.value.isNotEmpty) {
       int day = int.parse(selectedDay.value);
       int maxDays = getDaysInMonth(months.indexOf(month) + 1, 
           selectedYear.value.isEmpty ? DateTime.now().year : int.parse(selectedYear.value));
-      if (day > maxDays) {
-        selectedDay.value = '';
+      
+      if (day > maxDays || !isValidDate()) {
+        CustomSnackbar.warning(
+          context: context,
+          title: 'Invalid Date Format',
+          message: 'Please select a valid date',
+        );
+        clearDateFields();
       }
     }
   }
 
   // Update selected year
-  void setYear(String year) {
+  void setYear(String year,BuildContext context) {
     selectedYear.value = year;
-    // Reset day if it exceeds the new month's max days (leap year check)
-    if (selectedDay.value.isNotEmpty && selectedMonth.value.isNotEmpty) {
+    
+    // Validate date if all fields are selected (especially for leap year validation)
+    if (selectedDay.value.isNotEmpty && selectedMonth.value.isNotEmpty && selectedYear.value.isNotEmpty) {
       int day = int.parse(selectedDay.value);
       int maxDays = getDaysInMonth(months.indexOf(selectedMonth.value) + 1, int.parse(year));
-      if (day > maxDays) {
-        selectedDay.value = '';
+      
+      if (day > maxDays || !isValidDate()) {
+        CustomSnackbar.warning(
+          context: context,
+          title: 'Invalid Date Format',
+          message: 'Please select a valid date',
+        );
+        clearDateFields();
       }
     }
   }
 
   // Update selected day
-  void setDay(String day) {
+  void setDay(String day, BuildContext context) {
     selectedDay.value = day;
+    
+    // Validate date if all fields are selected
+    if (selectedDay.value.isNotEmpty && selectedMonth.value.isNotEmpty && selectedYear.value.isNotEmpty) {
+      if (!isValidDate()) {
+        toastification.show(
+          context: context,
+          title: Text('Invalid Date & Month!'),
+          autoCloseDuration: const Duration(seconds: 5),
+          backgroundColor: Colors.red,
+        );
+        clearDateFields();
+      }
+    }
   }
 
   // Toggle terms acceptance
@@ -136,7 +171,64 @@ class CreateAccountController extends GetxController {
     if (selectedDay.value.isEmpty || selectedMonth.value.isEmpty || selectedYear.value.isEmpty) {
       return 'Please select complete birth date';
     }
+    
+    // Validate if the date is actually valid
+    if (!isValidDate()) {
+      return 'Invalid date';
+    }
+    
     return null;
+  }
+
+  // Check if selected date is valid
+  bool isValidDate() {
+    if (selectedDay.value.isEmpty || selectedMonth.value.isEmpty || selectedYear.value.isEmpty) {
+      return false;
+    }
+
+    try {
+      int day = int.parse(selectedDay.value);
+      int monthIndex = months.indexOf(selectedMonth.value) + 1;
+      int year = int.parse(selectedYear.value);
+
+      // Check if month is valid
+      if (monthIndex < 1 || monthIndex > 12) {
+        return false;
+      }
+
+      // Check if day is valid for the selected month and year
+      int maxDays = getDaysInMonth(monthIndex, year);
+      if (day < 1 || day > maxDays) {
+        return false;
+      }
+
+      // Try to create a DateTime object to verify the date is valid
+      DateTime dateTime = DateTime(year, monthIndex, day);
+      
+      // Additional check to ensure the date components match
+      if (dateTime.year != year || dateTime.month != monthIndex || dateTime.day != day) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Clear date fields
+  void clearDateFields() {
+    selectedDay.value = '';
+    selectedMonth.value = '';
+    selectedYear.value = '';
+  }
+
+  // Format date to YYYY-MM-DD
+  String _formatDate() {
+    int monthIndex = months.indexOf(selectedMonth.value) + 1;
+    String month = monthIndex.toString().padLeft(2, '0');
+    String day = selectedDay.value.padLeft(2, '0');
+    return '${selectedYear.value}-$month-$day';
   }
 
   // Handle create account button press
@@ -159,26 +251,14 @@ class CreateAccountController extends GetxController {
         return;
       }
 
-      try {
-        isLoading.value = true;
+      // Store data temporarily for use after gender selection
+      tempEmail = emailController.text.trim();
+      tempName = usernameController.text.trim();
+      tempPassword = passwordController.text;
+      tempDateOfBirth = _formatDate();
 
-        // TODO: Implement your sign up API call here
-        await Future.delayed(const Duration(seconds: 2)); // Simulating API call
-
-        ToastMessage.success(
-          'Account created successfully!',
-        );
-
-        // Navigate to login or home
-        // Get.offAllNamed(AppPath.login);
-        context.push(AppPath.preferredGender);
-      } catch (e) {
-        ToastMessage.error(
-          'Failed to create account: ${e.toString()}',
-        );
-      } finally {
-        isLoading.value = false;
-      }
+      // Navigate to preferred gender selection
+      context.push(AppPath.preferredGender);
     }
   }
 

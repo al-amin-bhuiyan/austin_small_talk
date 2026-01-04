@@ -250,8 +250,8 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () => controller.onCreateOwnScenario(context),
       child: Container(
-        width: 370,
-        height: 128,
+        width: 370.w,
+        height: 128.h,
         padding: const EdgeInsets.all(12),
         decoration: ShapeDecoration(
           color: const Color(0x33F6F6F6),
@@ -357,13 +357,7 @@ class HomeScreen extends StatelessWidget {
   Widget _buildUserProfile(HomeController controller) {
     return Container(
       padding: EdgeInsets.all(2.w),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Color(0xFF00D9FF),
-          width: 2.w,
-        ),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
+
       child: Row(
         children: [
           ClipRRect(
@@ -423,12 +417,20 @@ class HomeScreen extends StatelessWidget {
         width: 48.w,
         height: 48.h,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
+          color: Colors.black.withOpacity(0.1),
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.2),
+            color: Colors.white.withOpacity(0.2),
             width: 1.w,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2), // Shadow color
+              offset: Offset(0, 4), // Shadow position
+              blurRadius: 6, // Shadow blur
+              spreadRadius: 3, // How much the shadow spreads
+            ),
+          ],
         ),
         child: Icon(
           Icons.notifications_none_rounded,
@@ -438,4 +440,5 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
 }

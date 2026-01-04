@@ -5,7 +5,7 @@ import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/privacy_po
 import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/termsandcondition/termsandcondition.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../pages/ai_talk/voice_chat/voice_chat.dart';
+import '../../data/global/shared_preference.dart';
 import '../../pages/home/home.dart';
 import '../../pages/history/history.dart';
 import '../../pages/login_or_sign_up/login_or_sign_up.dart';
@@ -69,9 +69,12 @@ class RoutePath {
         name: 'verifyEmail',
         builder: (context, state) {
           final flag = state.uri.queryParameters['flag'];
-          return VerifyEmailScreen(flag: flag);
-
-  }
+          final email = state.extra as String?;
+          return VerifyEmailScreen(
+            flag: flag,
+            email: email,
+          );
+        },
       ),
       GoRoute(
         path: AppPath.createNewPassword,

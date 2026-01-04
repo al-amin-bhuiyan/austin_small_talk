@@ -16,24 +16,23 @@ class CreateScenarioScreen extends StatelessWidget {
     final navBarController = Get.find<NavBarController>();
 
     return Scaffold(
+      extendBody: true,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF0A2342),
-              const Color(0xFF1A1A3E),
-              const Color(0xFF2D1B4E),
-            ],
+          image: DecorationImage(
+            image: AssetImage(CustomAssets.backgroundImage),
+            fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               // App Bar
               _buildAppBar(context),
-              SizedBox(height: 20.h,),
+              SizedBox(height: 20.h),
               // Main Content
               Expanded(
                 child: SingleChildScrollView(
@@ -64,17 +63,18 @@ class CreateScenarioScreen extends StatelessWidget {
                       // Start Scenario Button
                       _buildStartScenarioButton(controller, context),
                       
-                      SizedBox(height: 32.h),
+                      SizedBox(height: 100.h),
                     ],
                   ),
                 ),
               ),
-              
-              // Navigation Bar
-           //   CustomNavBar(controller: navBarController),
             ],
           ),
         ),
+      ),
+      
+      bottomNavigationBar: SafeArea(
+        child: CustomNavBar(controller: navBarController),
       ),
     );
   }

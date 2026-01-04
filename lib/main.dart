@@ -5,9 +5,13 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'core/app_route/route_path.dart';
 import 'core/dependency/dependency.dart';
+import 'data/global/shared_preference.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SharedPreferences
+  await SharedPreferencesUtil.init();
 
   // Initialize GetX controllers
   Dependency.init();
