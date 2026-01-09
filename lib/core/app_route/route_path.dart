@@ -5,7 +5,6 @@ import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/privacy_po
 import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/termsandcondition/termsandcondition.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/global/shared_preference.dart';
 import '../../pages/home/home.dart';
 import '../../pages/history/history.dart';
 import '../../pages/login_or_sign_up/login_or_sign_up.dart';
@@ -21,12 +20,14 @@ import '../../pages/profile/profile.dart';
 import '../../pages/home/notification/notification.dart';
 import '../../pages/home/create_scenario/create_scenario.dart';
 import '../../pages/ai_talk/message_screen/message_screen.dart';
+import '../../pages/ai_talk/voice_chat/voice_chat.dart';
 import '../../pages/profile/edit_profile/edit_profile.dart';
 import '../../pages/profile/subscription/subscription.dart';
 import '../../pages/profile/profile_notification/profile_notification.dart';
 import '../../pages/profile/profile_security/profile_security.dart';
 import '../../pages/profile/profile_security/profile_change_password/profile_change_password.dart';
 import '../../pages/profile/ProfileSupportandHelp/profile_support_and_help.dart';
+import '../../pages/verify_email_from_forget_password/verify_email_from_forget_password.dart';
 import '../../view/screen/splash_screen.dart';
 
 class RoutePath {
@@ -77,6 +78,11 @@ class RoutePath {
         },
       ),
       GoRoute(
+        path: AppPath.verifyEmailFromForgetPassword,
+        name: 'verifyEmailFromForgetPassword',
+        builder: (context, state) => const VerifyEmailFromForgetPasswordScreen(),
+      ),
+      GoRoute(
         path: AppPath.createNewPassword,
         name: 'createNewPassword',
         builder: (context, state) => const CreateNewPasswordScreen(),
@@ -125,6 +131,12 @@ class RoutePath {
         path: AppPath.messageScreen,
         name: 'messageScreen',
         builder: (context, state) => const MessageScreen(),
+      ),
+
+      GoRoute(
+        path: AppPath.voiceChat,
+        name: 'voiceChat',
+        builder: (context, state) => const VoiceChatScreen(),
       ),
 
       GoRoute(

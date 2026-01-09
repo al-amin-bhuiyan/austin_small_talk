@@ -4,12 +4,12 @@ import 'package:austin_small_talk/pages/create_new_password/create_new_password_
 import 'package:austin_small_talk/pages/forget_password/forget_password_controller.dart';
 import 'package:austin_small_talk/pages/history/history_controller.dart';
 import 'package:austin_small_talk/pages/home/home_controller.dart';
-import 'package:austin_small_talk/pages/login_or_sign_up/login_or_sign_up_controller.dart';
 import 'package:austin_small_talk/pages/prefered_gender/prefered_gender_controller.dart';
 import 'package:austin_small_talk/pages/profile/profile_security/profile_security_controller.dart';
 import 'package:austin_small_talk/pages/verified/verified_from_create_new_password_controller.dart';
 import 'package:austin_small_talk/pages/verified_from_verify_email/verified_from_verify_email_controller.dart';
 import 'package:austin_small_talk/pages/verify_email/verify_email_controller.dart';
+import 'package:austin_small_talk/pages/verify_email_from_forget_password/verify_email_from_forget_password_controller.dart';
 import 'package:austin_small_talk/pages/ai_talk/ai_talk_controller.dart';
 import 'package:austin_small_talk/pages/ai_talk/message_screen/message_screen_controller.dart';
 import 'package:austin_small_talk/pages/ai_talk/voice_chat/voice_chat_controller.dart';
@@ -37,6 +37,8 @@ class Dependency {
         fenix: true);
     Get.lazyPut<VerifyEmailController>(() => VerifyEmailController(),
         fenix: true);
+    Get.lazyPut<VerifyEmailFromForgetPasswordController>(
+        () => VerifyEmailFromForgetPasswordController(), fenix: true);
     Get.lazyPut<CreateNewPasswordController>(() =>
         CreateNewPasswordController(), fenix: true);
 

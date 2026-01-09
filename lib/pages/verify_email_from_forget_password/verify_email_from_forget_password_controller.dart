@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import '../../service/auth/api_service/api_services.dart';
-import '../../service/auth/models/verify_otp_request_model.dart';
+import '../../service/auth/models/reset_password_otp_request_model.dart';
 import '../../service/auth/models/resend_otp_request_model.dart';
 import '../../utils/custom_snackbar/custom_snackbar.dart';
+import '../create_new_password/create_new_password_controller.dart';
 
-/// Controller for VerifyEmailScreen - handles email verification logic
-class VerifyEmailController extends GetxController {
+/// Controller for VerifyEmailFromForgetPasswordScreen - handles OTP verification for forgot password flow
+class VerifyEmailFromForgetPasswordController extends GetxController {
   // Text editing controllers for 6 OTP digits
-  final RxBool flag = false.obs;
   final List<TextEditingController> otpControllers = List.generate(
     6,
     (index) => TextEditingController(),
@@ -26,10 +26,11 @@ class VerifyEmailController extends GetxController {
   // Observable states
   final RxBool isLoading = false.obs;
   final RxString email = ''.obs;
+  final RxString resetToken = ''.obs; // Store reset token after OTP verification
   
   // Resend OTP timer
   final RxInt resendTimer = 60.obs;
-  final RxBool isResending = false.obs; // true when counting down
+  final RxBool isResending = false.obs;
   Timer? _timer;
 
   // API Service
@@ -38,10 +39,8 @@ class VerifyEmailController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Get email from arguments if passed
-    if (Get.arguments != null && Get.arguments is String) {
-      email.value = Get.arguments;
-    } else {
+    // Email should be set from forgot password controller
+    if (email.value.isEmpty) {
       email.value = 'name@company.com'; // Default placeholder
     }
   }
@@ -91,7 +90,7 @@ class VerifyEmailController extends GetxController {
     }
   }
 
-  /// Handle verify button press - SIGNUP FLOW ONLY
+  /// Handle verify button press - FORGOT PASSWORD FLOW
   Future<void> onVerifyPressed(BuildContext context) async {
     // Validate OTP is complete
     if (!isOtpComplete()) {
@@ -118,14 +117,19 @@ class VerifyEmailController extends GetxController {
 
       String otpCode = getOtpCode();
 
-      // Create verify OTP request
-      final request = VerifyOtpRequestModel(
+      // Create reset password OTP request
+      final request = ResetPasswordOtpRequestModel(
         email: email.value,
         otp: otpCode,
       );
 
-      // Call API
-      final response = await _apiServices.verifyOtp(request);
+      // Call reset password OTP API (different from signup verify OTP)
+      final response = await _apiServices.resetPasswordOtp(request);
+
+      // Store reset token for later use
+      if (response.resetToken != null && response.resetToken!.isNotEmpty) {
+        resetToken.value = response.resetToken!;
+      }
 
       // Show success message
       if (context.mounted) {
@@ -139,9 +143,14 @@ class VerifyEmailController extends GetxController {
       // Small delay to show success message
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Navigate to Verified Screen (SIGNUP FLOW)
+      // Navigate to Create New Password (FORGOT PASSWORD FLOW)
       if (context.mounted) {
-        context.go(AppPath.verifiedfromverifyemail);
+        // Pass reset token to CreateNewPasswordController
+        final createPasswordController = Get.find<CreateNewPasswordController>();
+        createPasswordController.resetToken.value = resetToken.value;
+        createPasswordController.email.value = email.value;
+        
+        context.go(AppPath.createNewPassword);
       }
     } catch (e) {
       String errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -163,18 +172,21 @@ class VerifyEmailController extends GetxController {
           title: 'OTP Expired',
           message: 'The verification code has expired. Please request a new one.',
         );
-      } else if (errorMessage.toLowerCase().contains('already') && 
-                 errorMessage.toLowerCase().contains('verified')) {
-        // For signup, if already verified, send to login
-        CustomSnackbar.info(
+      } else if ((errorMessage.toLowerCase().contains('already') && 
+                  errorMessage.toLowerCase().contains('verified')) ||
+                 (errorMessage.toLowerCase().contains('already') && 
+                  errorMessage.toLowerCase().contains('activated'))) {
+        // For forgot password flow, if account is already verified/activated,
+        // allow user to proceed to reset password
+        CustomSnackbar.success(
           context: context,
-          title: 'Already Verified',
-          message: 'This account is already verified. Please login.',
+          title: 'Success',
+          message: 'You can now reset your password.',
         );
         
-        await Future.delayed(const Duration(seconds: 2));
+        await Future.delayed(const Duration(milliseconds: 500));
         if (context.mounted) {
-          context.go(AppPath.login);
+          context.go(AppPath.createNewPassword);
         }
       } else {
         CustomSnackbar.error(
@@ -228,12 +240,14 @@ class VerifyEmailController extends GetxController {
       if (!context.mounted) return;
       
       // Check specific error types
-      if (errorMessage.toLowerCase().contains('already activated') || 
-          errorMessage.toLowerCase().contains('already verified')) {
-        CustomSnackbar.info(
+      if ((errorMessage.toLowerCase().contains('already activated') || 
+           errorMessage.toLowerCase().contains('already verified'))) {
+        // For forgot password, this is OK - account should be activated
+        // Still send OTP for password reset
+        CustomSnackbar.success(
           context: context,
-          title: 'Account Already Verified',
-          message: 'Your account is already activated.',
+          title: 'OTP Sent',
+          message: 'Password reset code sent to your email.',
         );
       } else if (errorMessage.toLowerCase().contains('not found') || 
                  errorMessage.toLowerCase().contains('does not exist')) {
@@ -242,17 +256,21 @@ class VerifyEmailController extends GetxController {
           title: 'Email Not Found',
           message: 'No account found with this email address.',
         );
+        
+        // Stop timer if there's an error
+        _timer?.cancel();
+        isResending.value = false;
       } else {
         CustomSnackbar.error(
           context: context,
           title: 'Failed to Resend',
           message: errorMessage.isEmpty ? 'Could not send OTP. Please try again.' : errorMessage,
         );
+        
+        // Stop timer if there's an error
+        _timer?.cancel();
+        isResending.value = false;
       }
-      
-      // Stop timer if there's an error
-      _timer?.cancel();
-      isResending.value = false;
     }
   }
   

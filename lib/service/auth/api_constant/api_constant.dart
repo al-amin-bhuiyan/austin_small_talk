@@ -11,4 +11,8 @@ class ApiConstant {
   static const String login = '${smallTalk}accounts/user/login/';
   static const String refreshToken = '${smallTalk}accounts/user/token/refresh/';
   static const String verifyToken = '${smallTalk}accounts/user/token/verify/';
+  static const String forgotPassword = '${smallTalk}accounts/user/send-reset-password-email/';
+  static const String resetPasswordOtp = '${smallTalk}accounts/user/reset-password-otp/';
+  static const String setNewPassword = '${smallTalk}accounts/user/set-new-password/';
+  static const String changePassword = '${smallTalk}accounts/user/change-password/';
 }

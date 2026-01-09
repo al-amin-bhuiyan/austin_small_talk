@@ -190,7 +190,7 @@ class CreateAccountScreen extends StatelessWidget {
                                 children: [
                                   WidgetSpan(
                                     child: GestureDetector(
-                                      onTap: controller.onTermsPressed,
+                                      onTap: ()=>controller.onTermsPressed(context),
                                       child: Text(
                                         'Terms and Conditions',
                                         style: AppFonts.poppinsMedium(

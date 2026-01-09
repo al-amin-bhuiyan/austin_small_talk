@@ -85,7 +85,7 @@ class VerifiedScreenFromVerifyEmail extends StatelessWidget {
                 // Login to your Account Button
                 Obx(
                       () => CustomButton(
-                    label: 'Login to your Account',
+                    label: 'Go to Home Page',
                     onPressed: () => controller.onLoginToAccountPressed(context),
                     isLoading: controller.isLoading.value,
                     height: 56.h,

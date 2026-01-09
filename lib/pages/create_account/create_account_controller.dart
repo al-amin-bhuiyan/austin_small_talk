@@ -234,9 +234,10 @@ class CreateAccountController extends GetxController {
   // Handle create account button press
   Future<void> onCreateAccountPressed(BuildContext context) async {
     if (!acceptTerms.value) {
-      ToastMessage.error(
-        'Please accept the Terms and Conditions',
-        title: 'Terms Required',
+      CustomSnackbar.warning(
+        context: context,
+        title: 'Terms Not Accepted',
+        message: 'You must accept the terms and conditions to proceed',
       );
       return;
     }
@@ -263,10 +264,9 @@ class CreateAccountController extends GetxController {
   }
 
   // Navigate to Terms and Conditions
-  void onTermsPressed() {
-    ToastMessage.info(
-      'Terms and Conditions page coming soon',
-    );
+  void onTermsPressed(BuildContext context) {
+    context.push(AppPath.termsAndConditions);
+
   }
 
   // Navigate to Login

@@ -20,7 +20,7 @@ class CustomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 64.h,
-      margin: EdgeInsets.symmetric(horizontal: 50.w, vertical: 10.h),
+      margin: EdgeInsets.only(left: 50.w, right: 50.w, top: 0, bottom: 10.h),
       padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 8.h),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(40.r),

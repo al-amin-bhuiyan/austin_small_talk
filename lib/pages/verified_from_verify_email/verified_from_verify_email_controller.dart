@@ -19,7 +19,7 @@ class VerifiedControllerFromVerifyEmail extends GetxController {
 
       // Navigate to login screen
 
-      context.go(AppPath.login);
+      context.go(AppPath.home);
     } catch (e) {
       ToastMessage.error(
         'Failed to navigate: ${e.toString()}',

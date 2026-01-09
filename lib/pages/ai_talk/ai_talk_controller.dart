@@ -35,9 +35,11 @@ class AiTalkController extends GetxController {
 
   void _onTextChanged() {
     hasText.value = textController.text.trim().isNotEmpty;
+    print('🔷 Text changed: "${textController.text}" | hasText: ${hasText.value}');
   }
 
   void _onFocusChanged() {
+    print('🔷 Focus changed: hasFocus: ${textFocusNode.hasFocus}');
     // Hide nav bar and show bottom input when text field is focused
     if (textFocusNode.hasFocus) {
       showNavBar.value = false;

@@ -49,6 +49,8 @@ class CustomAssets {
   static const String check ='assets/icons/check.svg';
   static const String close ='assets/icons/close.svg';
   static const String container ='assets/images/Container.png';
+  static const String send_icon ='assets/icons/send_svg.svg';
+  static const String voice_icon ='assets/icons/voice_icon_svg.svg';
 
 
 

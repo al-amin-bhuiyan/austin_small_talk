@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/app_route/app_path.dart';
-import '../../utils/toast_message/toast_message.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/models/set_new_password_request_model.dart';
+import '../../utils/custom_snackbar/custom_snackbar.dart';
 
 /// Controller for CreateNewPasswordScreen - handles password creation logic
 class CreateNewPasswordController extends GetxController {
@@ -13,9 +15,14 @@ class CreateNewPasswordController extends GetxController {
   // Observable states
   final RxBool isLoading = false.obs;
   final RxBool acceptTerms = false.obs;
+  final RxString resetToken = ''.obs; // Reset token from OTP verification
+  final RxString email = ''.obs; // Email for reference
 
   // Form key for validation
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  
+  // API Service
+  final ApiServices _apiServices = ApiServices();
 
   @override
   void onClose() {
@@ -54,33 +61,83 @@ class CreateNewPasswordController extends GetxController {
   /// Handle forget password button press
   Future<void> onForgetPasswordPressed(BuildContext context) async {
     if (!acceptTerms.value) {
-      ToastMessage.error(
-        'Please agree to Small Talk Terms of Use and Privacy Policy',
+      CustomSnackbar.warning(
+        context: context,
         title: 'Terms Required',
+        message: 'Please agree to Small Talk Terms of Use and Privacy Policy',
       );
       return;
     }
 
     if (formKey.currentState?.validate() ?? false) {
+      // Check if reset token is available
+      if (resetToken.value.isEmpty) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Error',
+          message: 'Reset token is missing. Please restart the password reset process.',
+        );
+        return;
+      }
+
       try {
         isLoading.value = true;
 
-        // TODO: Implement your create new password API call here
-        await Future.delayed(const Duration(seconds: 2));
-        // Simulating API call
-
-        ToastMessage.success(
-          'Password has been reset successfully',
-          duration: const Duration(seconds: 2),
+        // Create set new password request
+        final request = SetNewPasswordRequestModel(
+          resetToken: resetToken.value,
+          newPassword: newPasswordController.text,
+          newPassword2: confirmPasswordController.text,
         );
+
+        // Call API to set new password
+        final response = await _apiServices.setNewPassword(request);
+
+        if (context.mounted) {
+          CustomSnackbar.success(
+            context: context,
+            title: 'Success',
+            message: response.message,
+          );
+        }
+
+        // Clear password fields
+        newPasswordController.clear();
+        confirmPasswordController.clear();
+        acceptTerms.value = false;
 
         // Navigate to verified screen
         await Future.delayed(const Duration(milliseconds: 500));
-        context.go(AppPath.verifiedfromcreatenewpassword);
+        if (context.mounted) {
+          context.go(AppPath.verifiedfromcreatenewpassword);
+        }
       } catch (e) {
-        ToastMessage.error(
-          'Failed to reset password: ${e.toString()}',
-        );
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        
+        if (!context.mounted) return;
+        
+        // Check specific error types
+        if (errorMessage.toLowerCase().contains('invalid') && 
+            errorMessage.toLowerCase().contains('reset token')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Invalid Reset Token',
+            message: 'Your reset token is invalid or has expired. Please restart the password reset process.',
+          );
+        } else if (errorMessage.toLowerCase().contains('password') && 
+                   errorMessage.toLowerCase().contains('match')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Password Mismatch',
+            message: 'The passwords you entered do not match.',
+          );
+        } else {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Failed',
+            message: errorMessage,
+          );
+        }
       } finally {
         isLoading.value = false;
       }
@@ -88,23 +145,17 @@ class CreateNewPasswordController extends GetxController {
   }
 
   /// Navigate to Terms of Use
-  void onTermsPressed() {
-    ToastMessage.info(
-      'Terms of Use page coming soon',
-    );
+  void onTermsPressed(BuildContext context) {
+    context.go(AppPath.termsAndConditions);
   }
 
   /// Navigate to Privacy Policy
-  void onPrivacyPolicyPressed() {
-    ToastMessage.info(
-      'Privacy Policy page coming soon',
-    );
+  void onPrivacyPolicyPressed(BuildContext context) {
+    context.go(AppPath.privacyPolicy);
   }
 
   /// Navigate to Small Talk Support
-  void onSupportPressed() {
-    ToastMessage.info(
-      'Support page coming soon',
-    );
+  void onSupportPressed(BuildContext context) {
+   context.go(AppPath.supportandhelp);
   }
 }

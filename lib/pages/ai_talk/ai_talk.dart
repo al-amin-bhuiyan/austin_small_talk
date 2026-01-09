@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:go_router/go_router.dart';
 import 'package:wave_blob/wave_blob.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import '../../core/custom_assets/custom_assets.dart';
-import '../../core/app_route/app_path.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
 import '../../utils/nav_bar/nav_bar.dart';
 import '../../utils/nav_bar/nav_bar_controller.dart';
-import '../../view/custom_back_button/custom_back_button.dart';
 import 'ai_talk_controller.dart';
 
 class AiTalkScreen extends StatelessWidget {
@@ -23,7 +20,7 @@ class AiTalkScreen extends StatelessWidget {
     final navBarController = Get.find<NavBarController>();
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // Background image covering full screen
@@ -55,7 +52,7 @@ class AiTalkScreen extends StatelessWidget {
                       _buildGreeting(),
                       SizedBox(height: 80.h),
                       _buildAICircle(context, controller),
-                      SizedBox(height: 150.h),
+                      SizedBox(height: 230.h),
                     ],
                   ),
                 ),
@@ -66,26 +63,23 @@ class AiTalkScreen extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Text field
-
-                SizedBox(height: 4.h),
+                // Text field with voice icon
+                _buildMessageInput(context, controller),
                 // Nav bar
                 Obx(
-                      () =>
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: controller.showNavBar.value ? null : 0,
-                        child: controller.showNavBar.value
-                            ? SafeArea(
-                          child: CustomNavBar(controller: navBarController),
-                        )
-                            : const SizedBox.shrink(),
-                      ),
+                  () => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: controller.showNavBar.value ? null : 0,
+                    child: controller.showNavBar.value
+                        ? CustomNavBar(controller: navBarController)
+                        : const SizedBox.shrink(),
+                  ),
                 ),
+                SizedBox(height: MediaQuery.of(context).padding.bottom),
               ],
             ),
           ),
@@ -189,6 +183,80 @@ class AiTalkScreen extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildMessageInput(BuildContext context, AiTalkController controller) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.blackColor.withValues(alpha: 0.56),
+                borderRadius: BorderRadius.circular(25.r),
+                border: Border.all(
+                  color: AppColors.whiteColor.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+              child: TextField(
+                controller: controller.textController,
+                focusNode: controller.textFocusNode,
+                style: AppFonts.poppinsRegular(
+                  fontSize: 14,
+                  color: AppColors.whiteColor,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Type your message...',
+                  hintStyle: AppFonts.poppinsRegular(
+                    fontSize: 14,
+                    color: AppColors.whiteColor.withValues(alpha: 0.5),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 12.h,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Obx(
+            () => GestureDetector(
+              onTap: () {
+                if (controller.textFocusNode.hasFocus || controller.hasText.value) {
+                  // Send message when focused or has text
+                  controller.onSendPressed(context);
+                } else {
+                  // Navigate to voice chat screen
+                  controller.goToVoiceChat(context);
+                }
+              },
+              child: Container(
+                width: 48.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: (controller.textFocusNode.hasFocus || controller.hasText.value)
+                      ? const Color(0xFF4B006E)
+                      : AppColors.whiteColor.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: SvgPicture.asset(
+                    (controller.textFocusNode.hasFocus || controller.hasText.value)
+                        ? CustomAssets.send_icon
+                        : CustomAssets.voice_icon,
+                    width: 48.w,
+                    height: 48.h,
+
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
-
-

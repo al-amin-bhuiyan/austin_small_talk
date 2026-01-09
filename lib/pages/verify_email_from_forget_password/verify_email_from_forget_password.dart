@@ -6,34 +6,14 @@ import '../../core/custom_assets/custom_assets.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
 import '../../view/custom_button/custom_button.dart';
-import 'verify_email_controller.dart';
+import 'verify_email_from_forget_password_controller.dart';
 
-class VerifyEmailScreen extends StatelessWidget {
-  final dynamic flag;
-  final String? email;
-
-  const VerifyEmailScreen({
-    Key? key,
-    required this.flag,
-    this.email,
-  }) : super(key: key);
-
-
+class VerifyEmailFromForgetPasswordScreen extends StatelessWidget {
+  const VerifyEmailFromForgetPasswordScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<VerifyEmailController>();
-
-    
-    // Set the flag value in controller
-    if (flag != null) {
-      controller.flag.value = flag == 'true';
-    }
-
-    // Set the email value in controller if provided
-    if (email != null && email!.isNotEmpty) {
-      controller.email.value = email!;
-    }
+    final controller = Get.find<VerifyEmailFromForgetPasswordController>();
 
     return Scaffold(
       body: Container(
@@ -49,22 +29,18 @@ class VerifyEmailScreen extends StatelessWidget {
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
-               crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 40.h),
 
                 // Logo
-               Center(
-                 child: Image.asset(
-
-                   CustomAssets.splashLogo,
-                   width: 100.w,
-                   height: 100.h,
-                 ),
-               ),
-
-
-                // App name text below logo
+                Center(
+                  child: Image.asset(
+                    CustomAssets.splashLogo,
+                    width: 100.w,
+                    height: 100.h,
+                  ),
+                ),
 
                 SizedBox(height: 20.h),
 
@@ -82,7 +58,6 @@ class VerifyEmailScreen extends StatelessWidget {
 
                 // Description
                 Obx(
-
                   () => RichText(
                     textAlign: TextAlign.left,
                     text: TextSpan(
@@ -93,9 +68,7 @@ class VerifyEmailScreen extends StatelessWidget {
                         height: 1.5,
                       ),
                       children: [
-
                         TextSpan(
-
                           text: controller.email.value,
                           style: AppFonts.poppinsSemiBold(
                             fontSize: 14,
@@ -122,13 +95,12 @@ class VerifyEmailScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(
-                    6,  // Generate 6 OTP input fields
-                        (index) => Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 2.w),  // Add horizontal padding for spacing
+                    6,
+                    (index) => Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2.w),
                       child: SizedBox(
-                        width: 50.w,  // Set the width of each OTP field to 54.w
-                        height: 50.h,  // Set the height of each OTP field to 54.h
-
+                        width: 50.w,
+                        height: 50.h,
                         child: _buildOtpBox(
                           controller: controller.otpControllers[index],
                           focusNode: controller.focusNodes[index],
@@ -144,21 +116,20 @@ class VerifyEmailScreen extends StatelessWidget {
                   ),
                 ),
 
-
                 SizedBox(height: 36.h),
 
                 // Help text
-              Center(
-                child:   Text(
-                  'Make sure to keep this window open while check your inbox',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.poppinsRegular(
-                    fontSize: 12.9.sp,
-                    color: AppColors.whiteColor.withAlpha(200),
-                    height: 1.5,
+                Center(
+                  child: Text(
+                    'Make sure to keep this window open while check your inbox',
+                    textAlign: TextAlign.center,
+                    style: AppFonts.poppinsRegular(
+                      fontSize: 12.9.sp,
+                      color: AppColors.whiteColor.withAlpha(200),
+                      height: 1.5,
+                    ),
                   ),
                 ),
-              ),
 
                 SizedBox(height: 36.h),
 
@@ -166,7 +137,7 @@ class VerifyEmailScreen extends StatelessWidget {
                 Obx(
                   () => CustomButton(
                     label: 'Verify',
-                    onPressed:()=> controller.onVerifyPressed(context),
+                    onPressed: () => controller.onVerifyPressed(context),
                     isLoading: controller.isLoading.value,
                   ),
                 ),
@@ -188,7 +159,7 @@ class VerifyEmailScreen extends StatelessWidget {
                       Obx(
                         () => GestureDetector(
                           onTap: !controller.isResending.value
-                              ? () => controller.onResendCode(context) 
+                              ? () => controller.onResendCode(context)
                               : null,
                           child: Text(
                             controller.isResending.value

@@ -8,6 +8,7 @@ class AppPath {
   static const String createAccount = '/create-account';
   static const String forgetPassword = '/forget-password';
   static const String verifyEmail = '/verify-email';
+  static const String verifyEmailFromForgetPassword = '/verify-email-from-forget-password';
   static const String createNewPassword = '/create-new-password';
   static const String verifiedfromcreatenewpassword = '/verifiedfromcreatenewpassword';
   static const String verifiedfromverifyemail ='/verifiedfromverifyemail';

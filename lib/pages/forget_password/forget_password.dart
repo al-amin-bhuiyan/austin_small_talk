@@ -147,7 +147,7 @@ class ForgetPasswordScreen extends StatelessWidget {
                                 children: [
                                   WidgetSpan(
                                     child: GestureDetector(
-                                      onTap: controller.onTermsPressed,
+                                      onTap: ()=> controller.onTermsPressed(context),
                                       child: Text(
                                         'Terms of Use',
                                         style: AppFonts.poppinsMedium(
@@ -166,7 +166,7 @@ class ForgetPasswordScreen extends StatelessWidget {
                                   ),
                                   WidgetSpan(
                                     child: GestureDetector(
-                                      onTap: controller.onPrivacyPolicyPressed,
+                                      onTap: ()=>controller.onPrivacyPolicyPressed(context),
                                       child: Text(
                                         'Privacy Policy',
                                         style: AppFonts.poppinsMedium(

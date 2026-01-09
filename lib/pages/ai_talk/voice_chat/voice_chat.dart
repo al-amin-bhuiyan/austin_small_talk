@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:wave_blob/wave_blob.dart';
+import 'package:siri_wave/siri_wave.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
@@ -235,84 +236,180 @@ class VoiceChatScreen extends StatelessWidget {
     );
   }
 
-  /// Build Control Buttons
+  /// Build Control Buttons with Siri Wave and Blob Animation
   Widget _buildControlButtons(VoiceChatController controller) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
         children: [
-          GestureDetector(
-            onTap: () => controller.toggleListening(),
-            child: Container(
-              width: 60.w,
-              height: 60.h,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF8B5CF6).withValues(alpha: 0.8), Color(0xFF6B46C1).withValues(alpha: 0.8)],
+          // Siri Wave Visualization Area with buttons on top
+          Obx(() => Container(
+            height: 200.h,
+            width: double.infinity,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Siri Wave Background (only when listening)
+                if (controller.isListening.value)
+                  Positioned.fill(
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        Color(0xFF00D9FF),
+                        BlendMode.srcATop,
+                      ),
+                      child: SiriWaveform.ios9(
+                        controller: controller.siriController,
+                        options: const IOS9SiriWaveformOptions(
+                          height: 200,
+                          showSupportBar: true,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  // Show hint text when not listening
+                  Positioned(
+                    top: 40.h,
+                    child: Text(
+                      '',
+                      style: AppFonts.poppinsRegular(
+                        fontSize: 16,
+                        color: AppColors.whiteColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                
+                // Control Buttons Row - Positioned at center
+                Positioned(
+                  bottom: 50.h,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Pause Button
+                      GestureDetector(
+                        onTap: () => controller.toggleListening(),
+                        child: Container(
+                          width: 40.w,
+                          height: 40.h,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFF8B5CF6).withValues(alpha: 0.8),
+                                Color(0xFF6B46C1).withValues(alpha: 0.8)
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: Icon(
+                            controller.isListening.value ? Icons.pause : Icons.play_arrow,
+                            color: AppColors.whiteColor,
+                            size: 24.sp,
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(width: 20.w),
+                      
+                      // Mic Icon with Blob Animation (ALWAYS VISIBLE in row)
+                      GestureDetector(
+                        onTap: () => controller.toggleListening(),
+                        child: SizedBox(
+                          width: 100.w,
+                          height: 100.h,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Blob animation behind the icon when listening
+                              if (controller.isListening.value)
+                                WaveBlob(
+                                  blobCount: 2,
+                                  speed: 10,
+                                  child: Container(
+                                    width: 100.w,
+                                    height: 100.h,
+
+                                  ),
+                                ),
+                              
+                              // Mic icon container (always visible on top)
+                              Container(
+                                width: 70.w,
+                                height: 70.h,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Color(0xFF00D9FF), Color(0xFF0A84FF)],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      blurRadius: 12,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.mic,
+                                  color: AppColors.whiteColor,
+                                  size: 28.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(width: 20.w),
+                      
+                      // Cross Button
+                      GestureDetector(
+                        onTap: () => controller.goBack(Get.context!),
+                        child: Container(
+                          width: 40.w,
+                          height: 40.h,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFF8B5CF6).withValues(alpha: 0.8),
+                                Color(0xFF6B46C1).withValues(alpha: 0.8)
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            color: AppColors.whiteColor,
+                            size: 24.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: Offset(0, 4))],
-              ),
-              child: Obx(() => Icon(controller.isListening.value ? Icons.pause : Icons.play_arrow, color: AppColors.whiteColor, size: 24.sp)),
+              ],
             ),
-          ),
-          SizedBox(width: 16.w),
-          Obx(() {
-            final listening = controller.isListening.value;
-            final mic = Container(
-              width: 76.w,
-              height: 76.h,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Color(0xFF00D9FF), Color(0xFF0A84FF)]),
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: Offset(0, 6))],
-              ),
-              child: Icon(Icons.mic, color: AppColors.whiteColor, size: 28.sp),
-            );
-
-            if (!listening) {
-              return SizedBox(
-                width: 140.w,
-                height: 140.h,
-                child: Center(child: mic),
-              );
-            }
-
-            return SizedBox(
-              width: 160.w,
-              height: 160.h,
-              child: WaveBlob(
-                blobCount: 4,
-                amplitude: 9000.0,
-                scale: 1.35,
-                autoScale: true,
-                centerCircle: true,
-                overCircle: true,
-                circleColors: const [
-                  Color(0x3300B2FF),
-                  Color(0x3300A4FF),
-                  Color(0x2200B2FF),
-                  Color(0x2200A4FF),
-                ],
-                child: mic,
-              ),
-            );
-          }),
-          SizedBox(width: 16.w),
-          GestureDetector(
-            onTap: () => controller.goBack(Get.context!),
-            child: Container(
-              width: 60.w,
-              height: 60.h,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Color(0xFF8B5CF6).withValues(alpha: 0.8), Color(0xFF6B46C1).withValues(alpha: 0.8)]),
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: Offset(0, 4))],
-              ),
-              child: Icon(Icons.close, color: AppColors.whiteColor, size: 24.sp),
-            ),
-          ),
+          )),
         ],
       ),
     );

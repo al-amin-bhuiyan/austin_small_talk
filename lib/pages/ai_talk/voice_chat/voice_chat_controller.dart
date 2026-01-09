@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:siri_wave/siri_wave.dart';
 import '../../../core/app_route/app_path.dart';
 
 /// Voice Chat Controller - Handles voice interactions with AI
@@ -12,12 +13,19 @@ class VoiceChatController extends GetxController {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
   
+  // Siri Wave Controller
+  final IOS9SiriWaveformController siriController = IOS9SiriWaveformController(
+    amplitude: 0.5,
+    speed: 0.2,
+  );
+  
   // Observable states
   final isListening = false.obs;
   final isProcessing = false.obs;
   final isSpeaking = false.obs;
   final recognizedText = ''.obs;
   final messages = <ChatMessage>[].obs;
+  final currentAmplitude = 0.5.obs;
   
   // Wave animation properties
   final scale = 1.0.obs;
@@ -93,6 +101,11 @@ class VoiceChatController extends GetxController {
         onResult: (result) {
           recognizedText.value = result.recognizedWords;
         },
+        onSoundLevelChange: (level) {
+          // Update amplitude based on sound level (0-1 range)
+          currentAmplitude.value = (level / 5).clamp(0.3, 1.0);
+          siriController.amplitude = currentAmplitude.value;
+        },
         listenFor: Duration(seconds: 30),
         pauseFor: Duration(seconds: 3),
         listenOptions: stt.SpeechListenOptions(
@@ -108,6 +121,8 @@ class VoiceChatController extends GetxController {
     if (isListening.value) {
       await _speech.stop();
       isListening.value = false;
+      currentAmplitude.value = 3.0;
+      siriController.amplitude = 3.0;
       _stopAnimation();
       
       if (recognizedText.value.isNotEmpty) {

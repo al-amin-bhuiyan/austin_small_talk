@@ -1,14 +1,19 @@
 import 'package:austin_small_talk/core/app_route/app_path.dart';
+import 'package:austin_small_talk/utils/custom_snackbar/custom_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
-import '../../utils/toast_message/toast_message.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/models/forgot_password_request_model.dart';
+import '../verify_email_from_forget_password/verify_email_from_forget_password_controller.dart';
 
 /// Controller for ForgetPasswordScreen - handles password reset logic
 class ForgetPasswordController extends GetxController {
   // Text editing controller
   final TextEditingController emailController = TextEditingController();
-  var flag=true;
+  
+  // Flag for routing (true = forgot password flow)
+  var flag = true;
 
   // Observable states
   final RxBool isLoading = false.obs;
@@ -16,6 +21,9 @@ class ForgetPasswordController extends GetxController {
 
   // Form key for validation
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  
+  // API service
+  final ApiServices _apiServices = ApiServices();
 
   @override
   void onClose() {
@@ -30,49 +38,76 @@ class ForgetPasswordController extends GetxController {
 
   /// Validate email
   String? validateEmail(String? value) {
-    // if (value == null || value.isEmpty) {
-    //   return 'Email is required';
-    // }
-    // if (!GetUtils.isEmail(value)) {
-    //   return 'Please enter a valid email';
-    // }
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    }
+    if (!GetUtils.isEmail(value)) {
+      return 'Please enter a valid email';
+    }
     return null;
   }
 
   /// Handle forget password button press
   Future<void> onForgetPasswordPressed(BuildContext context) async {
+    // Check if terms are accepted
     if (!acceptTerms.value) {
-      ToastMessage.error(
-        'Please agree to Small Talk Terms of Use and Privacy Policy',
-        title: 'Terms Required',
+      CustomSnackbar.warning(
+        context: context,
+        title: "Warning",
+        message: "You have to agree with Terms and Condition",
       );
-    }
-    else{
-      context.push('${AppPath.verifyEmail}?flag=true');
-      //context.push('${AppPath.verifyEmail}?flag=true');
-
+      return;
     }
 
+    // Validate form
     if (formKey.currentState?.validate() ?? false) {
       try {
         isLoading.value = true;
 
-        // TODO: Implement your password reset API call here
-        await Future.delayed(const Duration(seconds: 2));
-        // Simulating API call
-
-        ToastMessage.success(
-          'Password reset instructions sent to ${emailController.text}',
-          duration: const Duration(seconds: 3),
+        // Create forgot password request
+        final request = ForgotPasswordRequestModel(
+          email: emailController.text.trim(),
         );
 
-        // Clear email field after success
-        emailController.clear();
-        acceptTerms.value = false;
+        // Call API to send reset password email
+        final response = await _apiServices.sendResetPasswordEmail(request);
+
+        if (context.mounted) {
+          CustomSnackbar.success(
+            context: context,
+            title: 'Success',
+            message: response.message,
+          );
+        }
+
+        // Get VerifyEmailFromForgetPasswordController and set email
+        final verifyController = Get.find<VerifyEmailFromForgetPasswordController>();
+        verifyController.email.value = emailController.text.trim();
+
+        // Navigate to verify email from forget password screen
+        if (context.mounted) {
+          context.push(AppPath.verifyEmailFromForgetPassword);
+        }
       } catch (e) {
-        ToastMessage.error(
-          'Failed to send reset instructions: ${e.toString()}',
-        );
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        
+        if (!context.mounted) return;
+        
+        // Check if email doesn't exist
+        if (errorMessage.toLowerCase().contains('not found') || 
+            errorMessage.toLowerCase().contains('does not exist')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Email Not Found',
+            message: errorMessage,
+          );
+        } else {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Failed',
+            message: errorMessage,
+          );
+        }
       } finally {
         isLoading.value = false;
       }
@@ -80,23 +115,17 @@ class ForgetPasswordController extends GetxController {
   }
 
   /// Navigate to Terms of Use
-  void onTermsPressed() {
-    ToastMessage.info(
-      'Terms of Use page coming soon',
-    );
+  void onTermsPressed(BuildContext context) {
+    context.push(AppPath.termsAndConditions);
   }
 
   /// Navigate to Privacy Policy
-  void onPrivacyPolicyPressed() {
-    ToastMessage.info(
-      'Privacy Policy page coming soon',
-    );
+  void onPrivacyPolicyPressed(BuildContext context) {
+    context.push(AppPath.privacyPolicy);
   }
 
   /// Navigate to Account Recovery
   void onAccountRecoveryPressed() {
-    ToastMessage.info(
-      'Account Recovery page coming soon',
-    );
+    // TODO: Implement account recovery flow
   }
 }

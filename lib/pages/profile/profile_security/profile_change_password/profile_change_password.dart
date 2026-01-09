@@ -68,10 +68,14 @@ class ProfileChangePasswordScreen extends StatelessWidget {
                       SizedBox(height: 32.h),
 
                       // Save Button
-                      CustomStartConversationButton(
+                      Obx(() => CustomStartConversationButton(
                         label: 'Save',
-                        onPressed: controller.changePassword,
-                      ),
+                        isLoading: controller.isLoading.value,
+                        onPressed: () {
+                          print('🔷 Save button pressed in UI');
+                          controller.changePassword(context);
+                        },
+                      )),
                     ],
                   ),
                 ),

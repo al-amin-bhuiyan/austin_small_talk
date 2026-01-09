@@ -135,7 +135,7 @@ class CreateNewPasswordScreen extends StatelessWidget {
                                   color: AppColors.deepblue,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = controller.onTermsPressed,
+                                  ..onTap = ()=>controller.onTermsPressed(context),
                               ),
                               TextSpan(
                                 text: ' and ',
@@ -151,7 +151,7 @@ class CreateNewPasswordScreen extends StatelessWidget {
                                   color: AppColors.deepblue,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = controller.onPrivacyPolicyPressed,
+                                  ..onTap = ()=>controller.onTermsPressed(context),
                               ),
                               TextSpan(
                                 text: '.',
@@ -198,7 +198,7 @@ class CreateNewPasswordScreen extends StatelessWidget {
                               color: AppColors.deepblue,
                             ),
                             recognizer: TapGestureRecognizer()
-                              ..onTap = controller.onSupportPressed,
+                              ..onTap = ()=>controller.onTermsPressed(context),
                           ),
                           TextSpan(
                             text: '.',
