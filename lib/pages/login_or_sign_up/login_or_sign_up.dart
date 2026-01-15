@@ -217,7 +217,7 @@ class LoginScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 56.h,
                     child: OutlinedButton(
-                      onPressed: controller.onGoogleSignInPressed,
+                      onPressed: ()=>controller.onGoogleSignInPressed,
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
                           color: AppColors.whiteColor.withAlpha(80),

@@ -4,9 +4,9 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/global/shared_preference.dart';
 import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/auth_service.dart';
 import '../../service/auth/models/login_request_model.dart';
 import '../../utils/custom_snackbar/custom_snackbar.dart';
-import '../../utils/toast_message/toast_message.dart';
 
 /// Controller for LoginScreen - handles login/signup logic
 class LoginController extends GetxController {
@@ -24,6 +24,9 @@ class LoginController extends GetxController {
   
   // API service
   final ApiServices _apiServices = ApiServices();
+  
+  // Auth service for Google Sign-In
+  final AuthService _authService = AuthService();
 
   @override
   void onInit() {
@@ -160,17 +163,21 @@ class LoginController extends GetxController {
   }
 
   /// Handle Google sign in
-  Future<void> onGoogleSignInPressed() async {
+  Future<void> onGoogleSignInPressed(BuildContext context) async {
     try {
       isLoading.value = true;
-
-      // TODO: Implement Google Sign In
-      await Future.delayed(const Duration(seconds: 1));
-
-      // CustomSnackbar requires context, so we'll skip showing message for now
-      // Or you can pass context from the UI
+      
+      // Call the AuthService to handle Google Sign-In
+      await _authService.signUpWithGoogle();
+      
     } catch (e) {
-      // Handle error
+      if (context.mounted) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Google Sign-In Failed',
+          message: e.toString().replaceAll('Exception: ', ''),
+        );
+      }
     } finally {
       isLoading.value = false;
     }

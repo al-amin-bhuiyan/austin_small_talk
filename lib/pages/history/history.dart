@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/custom_assets/custom_assets.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
 import '../../utils/nav_bar/nav_bar.dart';
 import '../../utils/nav_bar/nav_bar_controller.dart';
+import '../../utils/toast_message/toast_message.dart';
+import '../../service/auth/models/scenario_model.dart';
 import 'history_controller.dart';
 
 /// History Screen - Shows chat history with conversations
@@ -19,9 +20,12 @@ class HistoryScreen extends StatelessWidget {
     final controller = Get.find<HistoryController>();
     final navBarController = Get.find<NavBarController>();
     
-    // Set nav bar to history tab (index 1)
-
-    navBarController.selectedIndex.value = 1;
+    // Set nav bar to history tab (index 1) after build completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (navBarController.selectedIndex.value != 1) {
+        navBarController.selectedIndex.value = 1;
+      }
+    });
 
     return Scaffold(
       extendBody: true,
@@ -58,6 +62,8 @@ class HistoryScreen extends StatelessWidget {
                         _buildConversationList(controller, context),
                         SizedBox(height: 20.h),
                         _buildNewScenarioButton(controller,context),
+                        SizedBox(height: 20.h),
+                        _buildUserScenarios(controller, context),
                       ],
                     ),
                   ),
@@ -270,28 +276,176 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _buildNewScenarioButton(HistoryController controller,BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onTap:()=> controller.onNewScenario(context),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 14.h),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(24.r),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.25),
-              width: 1,
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(
+            color: AppColors.whiteColor.withValues(alpha: 0.3),
+            thickness: 1,
           ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
             'New Scenario',
-            style: AppFonts.poppinsSemiBold(
+            style: AppFonts.poppinsRegular(
               fontSize: 14,
-              color: AppColors.whiteColor,
+              color: AppColors.whiteColor.withValues(alpha: 0.6),
             ),
           ),
         ),
+        Expanded(
+          child: Divider(
+            color: AppColors.whiteColor.withValues(alpha: 0.3),
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserScenarios(HistoryController controller, BuildContext context) {
+    return Obx(() {
+      if (controller.isScenariosLoading.value) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.all(20.h),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.whiteColor),
+            ),
+          ),
+        );
+      }
+
+      if (controller.userScenarios.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.all(20.h),
+            child: Text(
+              'No scenarios created yet',
+              style: AppFonts.poppinsRegular(
+                fontSize: 14,
+                color: AppColors.whiteColor.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Column(
+        children: controller.userScenarios.map((scenario) {
+          return _buildScenarioItem(scenario, context);
+        }).toList(),
+      );
+    });
+  }
+
+  Widget _buildScenarioItem(ScenarioModel scenario, BuildContext context) {
+    // Determine icon based on difficulty level
+    String difficultyIcon = 'create_your_own_scenario'; // default
+    if (scenario.difficultyLevel == 'easy') {
+      difficultyIcon = 'create_your_own_scenario';
+    } else if (scenario.difficultyLevel == 'medium') {
+      difficultyIcon = 'create_your_own_scenario';
+    } else if (scenario.difficultyLevel == 'hard') {
+      difficultyIcon = 'create_your_own_scenario';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        // TODO: Navigate to scenario detail or start conversation
+        ToastMessage.info('Starting scenario: ${scenario.scenarioTitle}');
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1.w,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Icon
+            Container(
+              width: 36.w,
+              height: 36.h,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(18.r),
+              ),
+              child: _getConversationIcon(difficultyIcon),
+            ),
+            SizedBox(width: 12.w),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          scenario.scenarioTitle,
+                          style: AppFonts.poppinsSemiBold(
+                            fontSize: 16,
+                            color: AppColors.whiteColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                        decoration: BoxDecoration(
+                          color: _getDifficultyColor(scenario.difficultyLevel),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Text(
+                          scenario.difficultyLevel.toUpperCase(),
+                          style: AppFonts.poppinsSemiBold(
+                            fontSize: 10,
+                            color: AppColors.whiteColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    scenario.description,
+                    style: AppFonts.poppinsRegular(
+                      fontSize: 14,
+                      color: AppColors.whiteColor.withValues(alpha: 0.7),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return Colors.green.withValues(alpha: 0.6);
+      case 'medium':
+        return Colors.orange.withValues(alpha: 0.6);
+      case 'hard':
+        return Colors.red.withValues(alpha: 0.6);
+      default:
+        return Colors.grey.withValues(alpha: 0.6);
+    }
   }
 }

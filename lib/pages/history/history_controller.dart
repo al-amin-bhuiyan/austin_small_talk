@@ -1,15 +1,23 @@
 import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../utils/toast_message/toast_message.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/models/scenario_model.dart';
+import '../../data/global/shared_preference.dart';
 
 /// Controller for History Screen - handles chat history logic
 class HistoryController extends GetxController {
   // Observable states
   final RxBool isLoading = false.obs;
+  final RxBool isScenariosLoading = false.obs;
   final RxString searchQuery = ''.obs;
+  
+  // User created scenarios
+  final RxList<ScenarioModel> userScenarios = <ScenarioModel>[].obs;
   
   // Sample conversation history data
   final RxList<ConversationItem> conversations = <ConversationItem>[
@@ -65,7 +73,7 @@ class HistoryController extends GetxController {
 
   /// Handle conversation tap
   void onConversationTap(String conversationId,BuildContext context) {
-    context.push(AppPath.messageScreen);
+    context.push(AppPath.createScenario);
     // TODO: Navigate to conversation detail screen
     ToastMessage.info('Opening conversation: $conversationId', title: 'Conversation');
   }
@@ -81,6 +89,51 @@ class HistoryController extends GetxController {
   /// Clear search
   void clearSearch() {
     searchQuery.value = '';
+  }
+
+  /// Fetch user created scenarios
+  Future<void> fetchUserScenarios() async {
+    try {
+      isScenariosLoading.value = true;
+      print('📡 Fetching user scenarios...');
+
+      // Get access token
+      final accessToken = SharedPreferencesUtil.getAccessToken();
+      
+      if (accessToken == null || accessToken.isEmpty) {
+        print('❌ No access token found, skipping scenarios fetch');
+        isScenariosLoading.value = false;
+        return;
+      }
+
+      print('✅ Access token found');
+
+      // Call API
+      final apiService = ApiServices();
+      final scenarios = await apiService.getScenarios(accessToken: accessToken);
+
+      userScenarios.value = scenarios;
+      print('✅ Fetched ${scenarios.length} scenarios');
+
+    } catch (e, stackTrace) {
+      print('❌ Error fetching scenarios: $e');
+      print('Stack trace: $stackTrace');
+      // Clear scenarios on error
+      userScenarios.value = [];
+    } finally {
+      isScenariosLoading.value = false;
+    }
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // onReady is called after the widget is fully rendered
+    // This is safe for API calls
+    final token = SharedPreferencesUtil.getAccessToken();
+    if (token != null && token.isNotEmpty) {
+      fetchUserScenarios();
+    }
   }
 }
 

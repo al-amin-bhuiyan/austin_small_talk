@@ -7,6 +7,7 @@ import '../../service/auth/api_service/api_services.dart';
 import '../../service/auth/models/verify_otp_request_model.dart';
 import '../../service/auth/models/resend_otp_request_model.dart';
 import '../../utils/custom_snackbar/custom_snackbar.dart';
+import '../../data/global/shared_preference.dart';
 
 /// Controller for VerifyEmailScreen - handles email verification logic
 class VerifyEmailController extends GetxController {
@@ -126,6 +127,21 @@ class VerifyEmailController extends GetxController {
 
       // Call API
       final response = await _apiServices.verifyOtp(request);
+
+      // Save user session if tokens are provided
+      if (response.accessToken != null && response.accessToken!.isNotEmpty) {
+        print('✅ Access token received, saving session...');
+        await SharedPreferencesUtil.saveUserSession(
+          accessToken: response.accessToken!,
+          refreshToken: response.refreshToken,
+          userId: response.userId,
+          userName: response.userName,
+          email: response.email ?? email.value,
+        );
+        print('✅ User session saved successfully');
+      } else {
+        print('⚠️ No access token in OTP verification response');
+      }
 
       // Show success message
       if (context.mounted) {

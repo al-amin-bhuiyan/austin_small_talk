@@ -1,3 +1,4 @@
+import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -280,7 +281,7 @@ class ProfileSecurityScreen extends StatelessWidget {
                 Text(
                   'Delete Account',
                   style: AppFonts.poppinsSemiBold(
-                    fontSize: 18,
+                    fontSize: 18.h,
                     color: Colors.redAccent,
                   ),
                 ),
@@ -295,8 +296,10 @@ class ProfileSecurityScreen extends StatelessWidget {
                 // Delete Button
                 GestureDetector(
                   onTap: () {
-                    Navigator.of(context).pop(); // Close dialog
+
                     controller.performDeleteAccount(context); // Perform delete
+                    context.push(AppPath.login);
+
                   },
                   child: Container(
                     width: double.infinity,

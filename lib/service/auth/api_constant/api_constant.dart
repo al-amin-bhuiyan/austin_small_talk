@@ -9,10 +9,13 @@ class ApiConstant {
   static const String verifyOtp = '${smallTalk}accounts/user/verify-otp/';
   static const String resendOtp = '${smallTalk}accounts/user/resend-otp/';
   static const String login = '${smallTalk}accounts/user/login/';
+  static const String googleAuthEndpoint = '${baseUrl}accounts/user/google-auth/';
   static const String refreshToken = '${smallTalk}accounts/user/token/refresh/';
   static const String verifyToken = '${smallTalk}accounts/user/token/verify/';
   static const String forgotPassword = '${smallTalk}accounts/user/send-reset-password-email/';
   static const String resetPasswordOtp = '${smallTalk}accounts/user/reset-password-otp/';
   static const String setNewPassword = '${smallTalk}accounts/user/set-new-password/';
   static const String changePassword = '${smallTalk}accounts/user/change-password/';
+  static const String createScenario = '${smallTalk}core/scenarios/';
+  static const String deleteAccount = '${smallTalk}accounts/user/delete-account/';
 }

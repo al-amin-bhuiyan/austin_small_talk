@@ -21,6 +21,10 @@ import '../models/set_new_password_request_model.dart';
 import '../models/set_new_password_response_model.dart';
 import '../models/change_password_request_model.dart';
 import '../models/change_password_response_model.dart';
+import '../models/create_scenario_request_model.dart';
+import '../models/create_scenario_response_model.dart';
+import '../models/scenario_model.dart';
+import '../models/delete_account_response_model.dart';
 
 /// API Services for Authentication
 class ApiServices {
@@ -895,6 +899,220 @@ class ApiServices {
             rethrow;
           }
           throw Exception('Failed to change password with status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Create Scenario API
+  Future<CreateScenarioResponseModel> createScenario({
+    required CreateScenarioRequestModel request,
+    required String accessToken,
+  }) async {
+    try {
+      print('📡 Creating scenario...');
+      print('📝 Request: ${jsonEncode(request.toJson())}');
+      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+
+      final response = await http.post(
+        Uri.parse(ApiConstant.createScenario),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+        return CreateScenarioResponseModel.fromJson(decodedResponse);
+      } else {
+        // Handle error response
+        try {
+          final decodedResponse = jsonDecode(response.body);
+          String errorMessage = 'Failed to create scenario';
+
+          if (decodedResponse is Map<String, dynamic>) {
+            // Check for specific error fields
+            if (decodedResponse['scenario_title'] != null) {
+              if (decodedResponse['scenario_title'] is List && (decodedResponse['scenario_title'] as List).isNotEmpty) {
+                errorMessage = decodedResponse['scenario_title'][0].toString();
+              } else if (decodedResponse['scenario_title'] is String) {
+                errorMessage = decodedResponse['scenario_title'];
+              }
+            } else if (decodedResponse['description'] != null) {
+              if (decodedResponse['description'] is List && (decodedResponse['description'] as List).isNotEmpty) {
+                errorMessage = decodedResponse['description'][0].toString();
+              } else if (decodedResponse['description'] is String) {
+                errorMessage = decodedResponse['description'];
+              }
+            } else if (decodedResponse['difficulty_level'] != null) {
+              if (decodedResponse['difficulty_level'] is List && (decodedResponse['difficulty_level'] as List).isNotEmpty) {
+                errorMessage = decodedResponse['difficulty_level'][0].toString();
+              } else if (decodedResponse['difficulty_level'] is String) {
+                errorMessage = decodedResponse['difficulty_level'];
+              }
+            } else if (decodedResponse['conversation_length'] != null) {
+              if (decodedResponse['conversation_length'] is List && (decodedResponse['conversation_length'] as List).isNotEmpty) {
+                errorMessage = decodedResponse['conversation_length'][0].toString();
+              } else if (decodedResponse['conversation_length'] is String) {
+                errorMessage = decodedResponse['conversation_length'];
+              }
+            } else if (decodedResponse['error'] != null) {
+              errorMessage = decodedResponse['error'].toString();
+            } else if (decodedResponse['detail'] != null) {
+              errorMessage = decodedResponse['detail'].toString();
+            } else if (decodedResponse['message'] != null) {
+              errorMessage = decodedResponse['message'].toString();
+            }
+          } else if (decodedResponse is String) {
+            errorMessage = decodedResponse;
+          }
+
+          throw Exception(errorMessage);
+        } catch (e) {
+          if (e.toString().contains('Exception:')) {
+            rethrow;
+          }
+          throw Exception('Failed to create scenario with status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Get User Scenarios API
+  Future<List<ScenarioModel>> getScenarios({
+    required String accessToken,
+  }) async {
+    try {
+      print('📡 Fetching user scenarios...');
+      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+
+      final response = await http.get(
+        Uri.parse(ApiConstant.createScenario),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> decodedResponse = jsonDecode(response.body);
+        return decodedResponse.map((json) => ScenarioModel.fromJson(json)).toList();
+      } else {
+        // Handle error response
+        try {
+          final decodedResponse = jsonDecode(response.body);
+          String errorMessage = 'Failed to fetch scenarios';
+          
+          if (decodedResponse is Map<String, dynamic>) {
+            errorMessage = decodedResponse['detail'] ?? 
+                          decodedResponse['error'] ?? 
+                          decodedResponse['message'] ?? 
+                          'Failed to fetch scenarios';
+          }
+          
+          throw Exception(errorMessage);
+        } catch (e) {
+          if (e.toString().contains('Exception:')) {
+            rethrow;
+          }
+          throw Exception('Failed to fetch scenarios with status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Delete Account API
+  Future<DeleteAccountResponseModel> deleteAccount({
+    required String accessToken,
+  }) async {
+    try {
+      print('📡 Deleting account...');
+      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+
+      final response = await http.delete(
+        Uri.parse(ApiConstant.deleteAccount),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // Handle empty response for 204 No Content
+        if (response.statusCode == 204 || response.body.isEmpty) {
+          return DeleteAccountResponseModel(
+            message: 'Account deleted successfully',
+          );
+        }
+        
+        final decodedResponse = jsonDecode(response.body);
+        return DeleteAccountResponseModel.fromJson(decodedResponse);
+      } else {
+        // Handle error response
+        try {
+          final decodedResponse = jsonDecode(response.body);
+          String errorMessage = 'Failed to delete account';
+
+          if (decodedResponse is Map<String, dynamic>) {
+            // Check for specific error codes first
+            final code = decodedResponse['code'];
+            
+            if (code == 'user_not_found') {
+              errorMessage = 'User not found. Please try logging in again.';
+            } else if (code == 'token_not_valid') {
+              errorMessage = 'Token is invalid or expired. Please login again.';
+            } else if (decodedResponse['detail'] != null) {
+              // Use detail message if no specific code matched
+              errorMessage = decodedResponse['detail'].toString();
+            } else if (decodedResponse['error'] != null) {
+              errorMessage = decodedResponse['error'].toString();
+            } else if (decodedResponse['message'] != null) {
+              errorMessage = decodedResponse['message'].toString();
+            } else if (decodedResponse['messages'] != null && decodedResponse['messages'] is List) {
+              final messages = decodedResponse['messages'] as List;
+              if (messages.isNotEmpty && messages[0] is Map) {
+                errorMessage = messages[0]['message'] ?? 'Token is invalid';
+              }
+            }
+          } else if (decodedResponse is String) {
+            errorMessage = decodedResponse;
+          }
+
+          throw Exception(errorMessage);
+        } catch (e) {
+          if (e.toString().contains('Exception:')) {
+            rethrow;
+          }
+          throw Exception('Failed to delete account with status: ${response.statusCode}');
         }
       }
     } catch (e) {

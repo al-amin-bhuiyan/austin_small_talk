@@ -18,8 +18,12 @@ class HomeScreen extends StatelessWidget {
     final controller = Get.find<HomeController>();
     final navBarController = Get.find<NavBarController>();
     
-    // Set nav bar to home tab (index 0)
-    navBarController.selectedIndex.value = 0;
+    // Set nav bar to home tab (index 0) after build completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (navBarController.selectedIndex.value != 0) {
+        navBarController.selectedIndex.value = 0;
+      }
+    });
 
     return Scaffold(
       extendBody: true,

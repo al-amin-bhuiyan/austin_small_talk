@@ -53,12 +53,7 @@ class CreateScenarioScreen extends StatelessWidget {
                       // Difficulty Level
                       _buildDifficultyLevel(controller),
                       
-                      SizedBox(height: 16.h),
-                      
-                      // AI Setting
-                      _buildAISetting(controller),
-                      
-                      SizedBox(height: 32.h),
+                      SizedBox(height: 122.h),
                       
                       // Start Scenario Button
                       _buildStartScenarioButton(controller, context),
@@ -315,138 +310,10 @@ class CreateScenarioScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAISetting(CreateScenarioController controller) {
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: ShapeDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-      ),
-      padding: EdgeInsets.all(16.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AI Setting',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16.sp,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-              height: 1.05,
-            ),
-          ),
-          SizedBox(height: 16.h),
-          Text(
-            'Conversation Length',
-            style: TextStyle(
-              color: const Color(0xFFF6F6F6),
-              fontSize: 14.sp,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w400,
-              height: 1.05,
-            ),
-          ),
-          SizedBox(height: 16.h),
-          Obx(() => SizedBox(
-            width: 300.w,
-            child: Column(
-              children: [
-                SliderTheme(
-                  data: SliderThemeData(
-                    trackHeight: 8.h,
-                    thumbShape: RoundSliderThumbShape(
-                      enabledThumbRadius: 6.r,
-                    ),
-                    overlayShape: RoundSliderOverlayShape(overlayRadius: 14.r),
-                    activeTrackColor: Colors.transparent,
-                    inactiveTrackColor: Colors.transparent,
-                    thumbColor: Colors.white,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      // Background track (gray)
-                      Container(
-                        width: 320.w,
-                        height: 8.h,
-                        decoration: ShapeDecoration(
-                          color: const Color(0xFFEDEFF2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4.r),
-                          ),
-                        ),
-                      ),
-                      // Active track with gradient
-                      Container(
-                        width: 320.w * controller.conversationLength.value,
-                        height: 8.h,
-                        decoration: ShapeDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment(0.00, 0.50),
-                            end: Alignment(1.00, 0.50),
-                            colors: [
-                              const Color(0xFF4C98A6),
-                              const Color(0xFF4B64A0),
-                            ],
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4.r),
-                          ),
-                        ),
-                      ),
-                      // Slider on top
-                      Slider(
-                        value: controller.conversationLength.value,
-                        onChanged: controller.updateConversationLength,
-                        min: 0.0,
-                        max: 1.0,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )),
-          SizedBox(height: 8.h),
-          SizedBox(
-            width: 320.w,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Start',
-                  style: TextStyle(
-                    color: const Color(0xFF9CA3AF),
-                    fontSize: 12.sp,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w500,
-                    height: 1.50,
-                  ),
-                ),
-                Text(
-                  'End',
-                  style: TextStyle(
-                    color: const Color(0xFF9CA3AF),
-                    fontSize: 12.sp,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w500,
-                    height: 1.50,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStartScenarioButton(CreateScenarioController controller, BuildContext context) {
-    return Center(
+    return Obx(() => Center(
       child: GestureDetector(
-        onTap: () => controller.startScenario(context),
+        onTap: controller.isLoading.value ? null : () => controller.startScenario(context),
         child: Container(
           width: 284.w,
           height: 41.h,
@@ -459,19 +326,28 @@ class CreateScenarioScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Center(
-            child: Text(
-              'Start Scenario',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16.sp,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: controller.isLoading.value
+                ? SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Start Scenario',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.sp,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
           ),
         ),
       ),
-    );
+    ));
   }
 }

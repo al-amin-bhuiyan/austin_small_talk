@@ -1,7 +1,13 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../utils/toast_message/toast_message.dart';
+import '../../../service/auth/api_service/api_services.dart';
+import '../../../service/auth/models/create_scenario_request_model.dart';
+import '../../../core/app_route/app_path.dart';
+import '../../../data/global/shared_preference.dart';
+import '../../history/history_controller.dart';
 
 /// Controller for Create Scenario Screen
 class CreateScenarioController extends GetxController {
@@ -11,11 +17,10 @@ class CreateScenarioController extends GetxController {
   // Form fields
   final RxString scenarioTitle = ''.obs;
   final RxString description = ''.obs;
-  final RxString difficultyLevel = 'Beginner'.obs;
-  final RxDouble conversationLength = 0.5.obs; // 0.0 to 1.0
+  final RxString difficultyLevel = 'Easy'.obs;  // Display value (will be converted to lowercase for API)
   
-  // Difficulty options
-  final List<String> difficultyOptions = ['Beginner', 'Medium', 'Hard'];
+  // Difficulty options - Display names (API expects: easy, medium, hard - lowercase)
+  final List<String> difficultyOptions = ['Easy', 'Medium', 'Hard'];
 
   /// Update scenario title
   void updateTitle(String value) {
@@ -32,13 +37,8 @@ class CreateScenarioController extends GetxController {
     difficultyLevel.value = value;
   }
 
-  /// Update conversation length
-  void updateConversationLength(double value) {
-    conversationLength.value = value;
-  }
-
   /// Validate and start scenario
-  void startScenario(BuildContext context) {
+  void startScenario(BuildContext context) async {
     if (scenarioTitle.value.isEmpty) {
       ToastMessage.error('Please enter a scenario title');
       return;
@@ -49,8 +49,71 @@ class CreateScenarioController extends GetxController {
       return;
     }
 
-    // TODO: Navigate to conversation screen with custom scenario
-    ToastMessage.success('Starting scenario: ${scenarioTitle.value}');
+    try {
+      isLoading.value = true;
+      print('🔷 Starting scenario creation...');
+
+      // Get access token
+      final accessToken = SharedPreferencesUtil.getAccessToken();
+      
+      if (accessToken == null || accessToken.isEmpty) {
+        ToastMessage.error('Please login first');
+        isLoading.value = false;
+        return;
+      }
+
+      print('✅ Access token found: ${accessToken.substring(0, 20)}...');
+
+      // Map difficulty level to lowercase (API expects: easy, medium, hard)
+      final difficultyLevelValue = difficultyLevel.value.toLowerCase();
+
+      print('📝 Scenario details:');
+      print('   Title: ${scenarioTitle.value}');
+      print('   Description: ${description.value}');
+      print('   Difficulty (UI): ${difficultyLevel.value}');
+      print('   Difficulty (API): $difficultyLevelValue');
+
+      // Create request model
+      final request = CreateScenarioRequestModel(
+        scenarioTitle: scenarioTitle.value,
+        description: description.value,
+        difficultyLevel: difficultyLevelValue,
+        conversationLength: 'medium', // Default to medium
+      );
+
+      print('📤 Request JSON: ${request.toJson()}');
+
+      // Call API
+      final apiService = ApiServices();
+      final response = await apiService.createScenario(
+        request: request,
+        accessToken: accessToken,
+      );
+
+      print('✅ Scenario created successfully!');
+      print('   ID: ${response.id}');
+
+      ToastMessage.success('Scenario created successfully!');
+      
+      // Refresh history controller to show new scenario
+      try {
+        final historyController = Get.find<HistoryController>();
+        await historyController.fetchUserScenarios();
+      } catch (e) {
+        print('⚠️ History controller not found, will refresh on next visit');
+      }
+      
+      // Navigate to history screen
+      if (context.mounted) {
+        context.go(AppPath.history);
+      }
+
+    } catch (e) {
+      print('❌ Error creating scenario: $e');
+      ToastMessage.error(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   @override
