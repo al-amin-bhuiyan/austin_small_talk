@@ -5,8 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
-import '../../utils/nav_bar/nav_bar.dart';
-import '../../utils/nav_bar/nav_bar_controller.dart';
 import 'profile_controller.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -15,7 +13,6 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ProfileController());
-    final navBarController = Get.find<NavBarController>();
 
     return Scaffold(
       body: Container(
@@ -60,8 +57,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               
-              // Navigation Bar
-              CustomNavBar(controller: navBarController),
+              // ✅ Nav bar removed - MainNavigation provides it
             ],
           ),
         ),
@@ -108,70 +104,80 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(ProfileController controller) {
-    return Obx(() => Container(
+    return Container(
       width: double.infinity,
       height: 186.h,
       decoration: BoxDecoration(
-
         color: AppColors.profile_item_background,
         borderRadius: BorderRadius.circular(5.r),
       ),
-
       child: Column(
         children: [
           SizedBox(height: 10.h),
           // Avatar
-          Container(
-            width: 100.w,
-            height: 100.h,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF6B8CFF),
-                  Color(0xFF8B5CF6),
-                ],
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(0.w),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[800],
-                  image: DecorationImage(
-                    image: AssetImage(CustomAssets.person),
-                    fit: BoxFit.cover,
-                  ),
+          Obx(() {
+            final imageUrl = controller.userAvatar.value;
+            return Container(
+              width: 100.w,
+              height: 100.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF6B8CFF),
+                    Color(0xFF8B5CF6),
+                  ],
                 ),
               ),
-            ),
-          ),
+              child: Padding(
+                padding: EdgeInsets.all(3.w),
+                child: ClipOval(
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          width: 94.w,
+                          height: 94.h,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.asset(
+                          CustomAssets.person,
+                          width: 94.w,
+                          height: 94.h,
+                          fit: BoxFit.cover,
+                        ),
+                ),
+              ),
+            );
+          }),
 
           SizedBox(height: 16.h),
 
           // Name
-          Text(
-            controller.userName.value,
-            style: AppFonts.poppinsSemiBold(
-              fontSize: 20,
-              color: AppColors.whiteColor,
+          Obx(
+            () => Text(
+              controller.userName.value,
+              style: AppFonts.poppinsSemiBold(
+                fontSize: 20,
+                color: AppColors.whiteColor,
+              ),
             ),
           ),
 
           SizedBox(height: 4.h),
 
           // Email
-          Text(
-            controller.userEmail.value,
-            style: AppFonts.poppinsRegular(
-              fontSize: 14,
-              color: AppColors.whiteColor.withValues(alpha: 0.6),
+          Obx(
+            () => Text(
+              controller.userEmail.value,
+              style: AppFonts.poppinsRegular(
+                fontSize: 14,
+                color: AppColors.whiteColor.withValues(alpha: 0.6),
+              ),
             ),
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _buildMenuGroup1(ProfileController controller, BuildContext context) {

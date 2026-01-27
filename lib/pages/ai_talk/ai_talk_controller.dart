@@ -25,12 +25,11 @@ class AiTalkController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Listen to text changes
-    textController.addListener(_onTextChanged);
-    // Listen to focus changes
-    textFocusNode.addListener(_onFocusChanged);
-    // Start animation timer for WaveBlob
-    _startAnimationTimer();
+    print('🎬 AiTalkController.onInit() - Starting animation immediately');
+    // Start animation immediately - trigger first update in next frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAnimationTimer();
+    });
   }
 
   void _onTextChanged() {
@@ -104,10 +103,20 @@ class AiTalkController extends GetxController {
     context.push(AppPath.messageScreen);
   }
 
+  /// Navigate to create scenario screen
+  void goToCreateScenario(BuildContext context) {
+    context.push(AppPath.createScenario);
+  }
+
   void _startAnimationTimer() {
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      // Just trigger rebuild - WaveBlob handles animation internally
-      update();
+    print('⚡ Starting WaveBlob animation timer');
+    // Trigger first update immediately
+    update(['waveBlob']);
+    print('✅ First animation frame rendered');
+    
+    // Then continue with periodic updates at 150ms intervals for smoother animation
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      update(['waveBlob']);
     });
   }
 

@@ -3,10 +3,10 @@ import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/FAQs/faqs.
 import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/contactHelp/contact_help.dart';
 import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/privacy_policy/privacy_policy.dart';
 import 'package:austin_small_talk/pages/profile/ProfileSupportandHelp/termsandcondition/termsandcondition.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../pages/home/home.dart';
-import '../../pages/history/history.dart';
+import '../../pages/main_navigation/main_navigation.dart';
 import '../../pages/login_or_sign_up/login_or_sign_up.dart';
 import '../../pages/create_account/create_account.dart';
 import '../../pages/forget_password/forget_password.dart';
@@ -15,8 +15,6 @@ import '../../pages/verified_from_verify_email/verified_from_verify_email.dart';
 import '../../pages/verify_email/verify_email.dart';
 import '../../pages/create_new_password/create_new_password.dart';
 import '../../pages/prefered_gender/prefered_gender.dart';
-import '../../pages/ai_talk/ai_talk.dart';
-import '../../pages/profile/profile.dart';
 import '../../pages/home/notification/notification.dart';
 import '../../pages/home/create_scenario/create_scenario.dart';
 import '../../pages/ai_talk/message_screen/message_screen.dart';
@@ -31,7 +29,7 @@ import '../../pages/verify_email_from_forget_password/verify_email_from_forget_p
 import '../../view/screen/splash_screen.dart';
 
 class RoutePath {
-  static final GoRouter router =GoRouter(
+  static final GoRouter router = GoRouter(
     initialLocation: AppPath.splash,
     routes: [
       GoRoute(
@@ -40,159 +38,250 @@ class RoutePath {
         builder: (context, state) => const SplashScreen(),
       ),
 
-      GoRoute(
-        path: AppPath.home,
-        name: 'home',
-        builder: (context, state) => const HomeScreen(),
+      // ✅ Shell route with IndexedStack - All 4 tabs share ONE MainNavigation instance
+      // This eliminates white screen flicker completely
+      ShellRoute(
+        builder: (context, state, child) => const MainNavigation(),
+        routes: [
+          GoRoute(
+            path: AppPath.home,
+            name: 'home',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SizedBox.shrink(), // Placeholder - MainNavigation handles display
+            ),
+          ),
+          GoRoute(
+            path: AppPath.history,
+            name: 'history',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SizedBox.shrink(),
+            ),
+          ),
+          GoRoute(
+            path: AppPath.aitalk,
+            name: 'aitalk',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SizedBox.shrink(),
+            ),
+          ),
+          GoRoute(
+            path: AppPath.profile,
+            name: 'profile',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ],
       ),
-      GoRoute(
-        path: AppPath.history,
-        name: 'history',
-        builder: (context, state) => const HistoryScreen(),
-      ),
+
+      // ✅ All other routes use NoTransitionPage for ZERO flicker
       GoRoute(
         path: AppPath.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.createAccount,
         name: 'createAccount',
-        builder: (context, state) => const CreateAccountScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CreateAccountScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.forgetPassword,
         name: 'forgetPassword',
-        builder: (context, state) => const ForgetPasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ForgetPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.verifyEmail,
         name: 'verifyEmail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final flag = state.uri.queryParameters['flag'];
           final email = state.extra as String?;
-          return VerifyEmailScreen(
-            flag: flag,
-            email: email,
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: VerifyEmailScreen(
+              flag: flag,
+              email: email,
+            ),
           );
         },
       ),
       GoRoute(
         path: AppPath.verifyEmailFromForgetPassword,
         name: 'verifyEmailFromForgetPassword',
-        builder: (context, state) => const VerifyEmailFromForgetPasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const VerifyEmailFromForgetPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.createNewPassword,
         name: 'createNewPassword',
-        builder: (context, state) => const CreateNewPasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CreateNewPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.verifiedfromcreatenewpassword,
         name: 'verifiedfromcreatenewpassword',
-        builder: (context, state) => const VerifiedScreenFromCreateNewPassword(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const VerifiedScreenFromCreateNewPassword(),
+        ),
       ),
       GoRoute(
         path: AppPath.verifiedfromverifyemail,
         name: 'verifiedfromverifyemail',
-        builder: (context, state) => const VerifiedScreenFromVerifyEmail(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const VerifiedScreenFromVerifyEmail(),
+        ),
       ),
       GoRoute(
         path: AppPath.preferredGender,
         name: 'preferredGender',
-        builder: (context, state) => const PreferredGenderScreen(),
-      ),
-
-      GoRoute(
-        path: AppPath.aitalk,
-        name: 'aitalk',
-        builder: (context, state) => const AiTalkScreen(),
-      ),
-
-      GoRoute(
-        path: AppPath.profile,
-        name: 'profile',
-        builder: (context, state) => const ProfileScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const PreferredGenderScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.notification,
         name: 'notification',
-        builder: (context, state) => const NotificationScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const NotificationScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.createScenario,
         name: 'createScenario',
-        builder: (context, state) => const CreateScenarioScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CreateScenarioScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.messageScreen,
         name: 'messageScreen',
-        builder: (context, state) => const MessageScreen(),
+        pageBuilder: (context, state) {
+          final scenarioData = state.extra;
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: MessageScreen(scenarioData: scenarioData),
+          );
+        },
       ),
 
       GoRoute(
         path: AppPath.voiceChat,
         name: 'voiceChat',
-        builder: (context, state) => const VoiceChatScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const VoiceChatScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.editProfile,
         name: 'editProfile',
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const EditProfileScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.subscription,
         name: 'subscription',
-        builder: (context, state) => const SubscriptionScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SubscriptionScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.profileNotification,
         name: 'profileNotification',
-        builder: (context, state) => const ProfileNotificationScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProfileNotificationScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.profileSecurity,
         name: 'profileSecurity',
-        builder: (context, state) => const ProfileSecurityScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProfileSecurityScreen(),
+        ),
       ),
 
       GoRoute(
         path: AppPath.changePassword,
         name: 'changePassword',
-        builder: (context, state) => const ProfileChangePasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProfileChangePasswordScreen(),
+        ),
       ),
 
-  GoRoute(
-  path: AppPath.supportandhelp,
-  name: 'support-and-help',
-  builder: (context, state) => const ProfileSupportandHelpScreen(),
-  ),
+      GoRoute(
+        path: AppPath.supportandhelp,
+        name: 'support-and-help',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProfileSupportandHelpScreen(),
+        ),
+      ),
       GoRoute(
         path: AppPath.faqs,
         name: 'faqs',
-        builder: (context, state) => const FAQsScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const FAQsScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.contactSupport,
         name: 'contactSupport',
-        builder: (context, state) => const ContactHelpScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ContactHelpScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.privacyPolicy,
         name: 'privacyPolicy',
-        builder: (context, state) => const PrivacyPolicyScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const PrivacyPolicyScreen(),
+        ),
       ),
       GoRoute(
         path: AppPath.termsAndConditions,
         name: 'termsAndConditions',
-        builder: (context, state) => const TermsAndConditionScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const TermsAndConditionScreen(),
+        ),
       ),
 
     ]

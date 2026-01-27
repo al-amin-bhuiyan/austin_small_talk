@@ -7,6 +7,7 @@ import '../../../service/auth/api_service/api_services.dart';
 import '../../../service/auth/models/create_scenario_request_model.dart';
 import '../../../core/app_route/app_path.dart';
 import '../../../data/global/shared_preference.dart';
+import '../../../data/global/scenario_data.dart';
 import '../../history/history_controller.dart';
 
 /// Controller for Create Scenario Screen
@@ -39,13 +40,46 @@ class CreateScenarioController extends GetxController {
 
   /// Validate and start scenario
   void startScenario(BuildContext context) async {
-    if (scenarioTitle.value.isEmpty) {
-      ToastMessage.error('Please enter a scenario title');
+    // Validate Scenario Title
+    if (scenarioTitle.value.trim().isEmpty) {
+      ToastMessage.error(
+        'Scenario Title is required',
+        title: 'Missing Field',
+      );
       return;
     }
 
-    if (description.value.isEmpty) {
-      ToastMessage.error('Please enter a description');
+    if (scenarioTitle.value.trim().length < 3) {
+      ToastMessage.error(
+        'Scenario Title must be at least 3 characters',
+        title: 'Invalid Title',
+      );
+      return;
+    }
+
+    // Validate Description
+    if (description.value.trim().isEmpty) {
+      ToastMessage.error(
+        'Description is required',
+        title: 'Missing Field',
+      );
+      return;
+    }
+
+    if (description.value.trim().length < 10) {
+      ToastMessage.error(
+        'Description must be at least 10 characters',
+        title: 'Invalid Description',
+      );
+      return;
+    }
+
+    // Validate Difficulty Level
+    if (difficultyLevel.value.isEmpty) {
+      ToastMessage.error(
+        'Please select a difficulty level',
+        title: 'Missing Field',
+      );
       return;
     }
 
@@ -57,7 +91,10 @@ class CreateScenarioController extends GetxController {
       final accessToken = SharedPreferencesUtil.getAccessToken();
       
       if (accessToken == null || accessToken.isEmpty) {
-        ToastMessage.error('Please login first');
+        ToastMessage.error(
+          'Please login first',
+          title: 'Authentication Required',
+        );
         isLoading.value = false;
         return;
       }
@@ -92,6 +129,7 @@ class CreateScenarioController extends GetxController {
 
       print('✅ Scenario created successfully!');
       print('   ID: ${response.id}');
+      print('   Scenario ID: ${response.scenarioId}');
 
       ToastMessage.success('Scenario created successfully!');
       
@@ -103,9 +141,39 @@ class CreateScenarioController extends GetxController {
         print('⚠️ History controller not found, will refresh on next visit');
       }
       
-      // Navigate to history screen
+      // Create scenario data for message screen
+      final scenarioData = ScenarioData(
+        scenarioId: response.scenarioId,  // ai_scenario_id from API
+        scenarioTitle: response.scenarioTitle,
+        scenarioDescription: response.description,
+        scenarioIcon: '🎯', // Default emoji for user-created scenarios
+        scenarioType: 'user_created',
+        difficulty: response.difficultyLevel,
+        sourceScreen: 'create_scenario', // Track that user came from Create Scenario
+      );
+      
+      print('═══════════════════════════════════════════');
+      print('📤 NAVIGATING TO MESSAGE SCREEN:');
+      print('   Scenario ID (ai_scenario_id): ${scenarioData.scenarioId}');
+      print('   Title: ${scenarioData.scenarioTitle}');
+      print('   Type: ${scenarioData.scenarioType}');
+      print('   Source Screen: ${scenarioData.sourceScreen}');
+      print('   This ID will be used to start chat session');
+      print('═══════════════════════════════════════════');
+      
+      // Navigate to message screen to start conversation
       if (context.mounted) {
-        context.go(AppPath.history);
+        print('✅ Context is mounted, attempting navigation...');
+        try {
+          // Use GoRouter.of(context).push instead of context.push for better reliability
+          GoRouter.of(context).push(AppPath.messageScreen, extra: scenarioData);
+          print('✅ Navigation command executed');
+        } catch (navError) {
+          print('❌ Navigation error: $navError');
+          ToastMessage.error('Failed to open chat screen');
+        }
+      } else {
+        print('❌ Context is not mounted, cannot navigate');
       }
 
     } catch (e) {

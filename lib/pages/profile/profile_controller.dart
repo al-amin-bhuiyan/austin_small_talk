@@ -2,10 +2,17 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import '../../core/app_route/app_path.dart';
+import '../../data/global/shared_preference.dart';
+import '../../service/auth/api_service/api_services.dart';
+import '../../service/auth/api_constant/api_constant.dart';
 import '../../utils/toast_message/toast_message.dart';
+import '../ai_talk/voice_chat/service/voice_chat_manager.dart';
 
 /// Controller for Profile Screen
 class ProfileController extends GetxController {
+  // Services
+  final ApiServices _apiServices = ApiServices();
+
   // Observable states
   final RxBool isLoading = false.obs;
   
@@ -61,8 +68,8 @@ class ProfileController extends GetxController {
     // Clear GetX controllers and data
     Get.deleteAll(force: true);
     
-    // Navigate to login page
-    context.push(AppPath.login);
+    // Navigate to login page - replace navigation stack (no flicker)
+    context.go(AppPath.login);
     
     // Show success message
     ToastMessage.success('Logged out successfully', title: 'Logout');
@@ -75,8 +82,39 @@ class ProfileController extends GetxController {
     loadUserProfile();
   }
 
-  /// Load user profile data
-  void loadUserProfile() {
-    // TODO: Load from API or local storage
+  /// Load user profile data from API
+  Future<void> loadUserProfile() async {
+    try {
+      isLoading.value = true;
+      
+      // Get access token
+      final accessToken = SharedPreferencesUtil.getAccessToken();
+      
+      if (accessToken == null || accessToken.isEmpty) {
+        print('❌ No access token found for profile');
+        isLoading.value = false;
+        return;
+      }
+
+      print('📡 Fetching user profile...');
+      
+      // Call API
+      final profile = await _apiServices.getUserProfile(
+        accessToken: accessToken,
+      );
+
+      // Update user data
+      userName.value = profile.name;
+      userEmail.value = profile.email;
+      userAvatar.value = profile.getFullImageUrl(ApiConstant.baseUrl) ?? '';
+      
+      print('✅ User profile loaded: ${profile.name}');
+      print('📸 Profile image: ${userAvatar.value}');
+    } catch (e) {
+      print('❌ Error fetching user profile: $e');
+      ToastMessage.error('Failed to load profile');
+    } finally {
+      isLoading.value = false;
+    }
   }
 }

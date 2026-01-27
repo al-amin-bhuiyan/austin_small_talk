@@ -6,8 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
-import '../../../utils/nav_bar/nav_bar.dart';
-import '../../../utils/nav_bar/nav_bar_controller.dart';
+import '../../../utils/toast_message/toast_message.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import '../../../view/custom_button/custom_button.dart';
 import 'edit_profile_controller.dart';
@@ -19,7 +18,6 @@ class EditProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(EditProfileController());
-    final navBarController = Get.find<NavBarController>();
 
     return Scaffold(
       body: Container(
@@ -49,22 +47,26 @@ class EditProfileScreen extends StatelessWidget {
                       SizedBox(height: 8.h),
                       
                       // Name
-                      Text(
-                        'Sophia Adams',
-                        style: AppFonts.poppinsSemiBold(
-                          fontSize: 18,
-                          color: AppColors.whiteColor,
+                      Obx(
+                        () => Text(
+                          controller.userName.value,
+                          style: AppFonts.poppinsSemiBold(
+                            fontSize: 18,
+                            color: AppColors.whiteColor,
+                          ),
                         ),
                       ),
                       
                       SizedBox(height: 4.h),
                       
                       // Email
-                      Text(
-                        'sophia@gmail.com',
-                        style: AppFonts.poppinsRegular(
-                          fontSize: 14,
-                          color: AppColors.whiteColor.withValues(alpha: 0.7),
+                      Obx(
+                        () => Text(
+                          controller.userEmail.value,
+                          style: AppFonts.poppinsRegular(
+                            fontSize: 14,
+                            color: AppColors.whiteColor.withValues(alpha: 0.7),
+                          ),
                         ),
                       ),
                       
@@ -78,7 +80,7 @@ class EditProfileScreen extends StatelessWidget {
                       // Save Button
                       Obx(() => CustomButton(
                         label: 'Save',
-                        onPressed: controller.saveProfile,
+                        onPressed:()=> controller.saveProfile(context),
                         isLoading: controller.isLoading.value,
                       )),
                       
@@ -106,7 +108,10 @@ class EditProfileScreen extends StatelessWidget {
         children: [
           // Back Button
           CustomBackButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Navigate back to profile page explicitly
+              context.go('/profile');
+            },
           ),
           
           Expanded(
@@ -131,6 +136,9 @@ class EditProfileScreen extends StatelessWidget {
   /// Build Profile Image Section
   Widget _buildProfileImageSection(EditProfileController controller) {
     return Obx(() {
+      final hasLocalImage = controller.profileImage.value != null;
+      final networkImageUrl = controller.profileImageUrl.value;
+      
       return Stack(
         children: [
           // Profile Image
@@ -145,15 +153,26 @@ class EditProfileScreen extends StatelessWidget {
               ),
             ),
             child: ClipOval(
-              child: controller.profileImage.value != null
+              child: hasLocalImage
                   ? Image.file(
                       File(controller.profileImage.value!),
                       fit: BoxFit.cover,
                     )
-                  : Image.asset(
-                      CustomAssets.person,
-                      fit: BoxFit.cover,
-                    ),
+                  : networkImageUrl.isNotEmpty
+                      ? Image.network(
+                          networkImageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              CustomAssets.person,
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          CustomAssets.person,
+                          fit: BoxFit.cover,
+                        ),
             ),
           ),
           
@@ -230,6 +249,12 @@ class EditProfileScreen extends StatelessWidget {
           ),
           child: TextField(
             controller: controller.fullNameController,
+            keyboardType: TextInputType.name,
+            textInputAction: TextInputAction.next,
+            autofocus: false,
+            enabled: true,
+            readOnly: false,
+            textCapitalization: TextCapitalization.words,
             style: TextStyle(
               color: const Color(0xFFF6F6F6),
               fontSize: 14.sp,
@@ -238,7 +263,7 @@ class EditProfileScreen extends StatelessWidget {
               height: 1.05,
             ),
             decoration: InputDecoration(
-              hintText: 'Sophia Adams',
+              hintText: 'Enter your full name',
               hintStyle: TextStyle(
                 color: Colors.white.withValues(alpha: 0.60),
                 fontSize: 14.sp,
@@ -257,42 +282,50 @@ class EditProfileScreen extends StatelessWidget {
         // Email Address Field
         _buildFieldLabel('Email Address'),
         SizedBox(height: 8.h),
-        Container(
-          height: 47.h,
-          clipBehavior: Clip.antiAlias,
-          decoration: ShapeDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-            shadows: [
-              BoxShadow(
-                color: Color(0x28000000),
-                blurRadius: 6,
-                offset: Offset(0, 3),
-                spreadRadius: 0,
-              )
-            ],
-          ),
-          child: TextField(
-            controller: controller.emailController,
-            keyboardType: TextInputType.emailAddress,
-            style: TextStyle(
-              color: const Color(0xFFF6F6F6),
-              fontSize: 14.sp,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w400,
-              height: 1.05,
+        GestureDetector(
+          onTap: () {
+            ToastMessage.info('Email address cannot be edited');
+          },
+          child: Container(
+            height: 47.h,
+            clipBehavior: Clip.antiAlias,
+            decoration: ShapeDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+              shadows: [
+                BoxShadow(
+                  color: Color(0x28000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
+                  spreadRadius: 0,
+                )
+              ],
             ),
-            decoration: InputDecoration(
-              hintText: 'sophia@gmail.com',
-              hintStyle: TextStyle(
-                color: Colors.white.withValues(alpha: 0.60),
-                fontSize: 14.sp,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w400,
-                height: 1.05,
+            child: AbsorbPointer(
+              child: TextField(
+                controller: controller.emailController,
+                keyboardType: TextInputType.emailAddress,
+                enabled: false, // Make email field read-only
+                style: TextStyle(
+                  color: const Color(0xFFF6F6F6),
+                  fontSize: 14.sp,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w400,
+                  height: 1.05,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'sophia@gmail.com',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.60),
+                    fontSize: 14.sp,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w400,
+                    height: 1.05,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                ),
               ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
             ),
           ),
         ),
@@ -300,7 +333,27 @@ class EditProfileScreen extends StatelessWidget {
         SizedBox(height: 16.h),
         
         // Date of Birth Field
-        _buildFieldLabel('Date of Birth'),
+        Row(
+          children: [
+            Text(
+              'Date of Birth',
+              style: AppFonts.poppinsRegular(
+                fontSize: 14,
+                color: AppColors.whiteColor.withValues(alpha: 0.8),
+              ),
+            ),
+            SizedBox(width: 4.w),
+            Text(
+              '*',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 14,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
         SizedBox(height: 8.h),
         GestureDetector(
           onTap: () => controller.selectDateOfBirth(context),

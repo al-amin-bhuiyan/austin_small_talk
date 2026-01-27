@@ -1,4 +1,5 @@
 import 'package:austin_small_talk/core/app_route/app_path.dart';
+import 'package:austin_small_talk/data/global/scenario_data.dart';
 import 'package:austin_small_talk/view/custom_start_conversation_button/custom_start_conversation_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,20 +10,16 @@ import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
 
 class ScenarioDialog extends StatelessWidget {
-  final String scenarioType;
-  final String scenarioIcon;
-  final String scenarioTitle;
+  final ScenarioData scenarioData;
 
   const ScenarioDialog({
     Key? key,
-    required this.scenarioType,
-    required this.scenarioIcon,
-    required this.scenarioTitle,
+    required this.scenarioData,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    print('🎬 ScenarioDialog building - Type: $scenarioType, Icon: $scenarioIcon, Title: $scenarioTitle');
+    print('🎬 ScenarioDialog building - Type: ${scenarioData.scenarioType}, Title: ${scenarioData.scenarioTitle}');
     return Dialog(
       backgroundColor: Colors.transparent,
      insetPadding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -46,28 +43,22 @@ class ScenarioDialog extends StatelessWidget {
                 children: [
                   SizedBox(height: 20.h),
                   
-                  // Scenario Icon
+                  // Scenario Icon - Handle both emoji and SVG
                   Container(
                     width: 48.w,
                     height: 48.h,
-
                     child: Center(
-                      child: SvgPicture.asset(
-                        scenarioIcon,
-                        width: 48.w,
-                        height: 48.h,
-
-                      ),
+                      child: _buildIcon(),
                     ),
                   ),
                   
-                  SizedBox(height: 24.h),
+                  SizedBox(height: 10.h),
                   
                   // Title
                   Text(
                     'practice a Conversation',
                     style: AppFonts.poppinsSemiBold(
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       color: AppColors.whiteColor,
                     ),
                     textAlign: TextAlign.center,
@@ -77,9 +68,9 @@ class ScenarioDialog extends StatelessWidget {
                   
                   // Subtitle
                   Text(
-                    'on a $scenarioTitle',
+                    'on a ${scenarioData.scenarioTitle}',
                     style: AppFonts.poppinsSemiBold(
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       color: AppColors.whiteColor,
                     ),
                     textAlign: TextAlign.center,
@@ -89,9 +80,9 @@ class ScenarioDialog extends StatelessWidget {
                   
                   // Description
                   Text(
-                    _getDescription(scenarioType),
+                    scenarioData.scenarioDescription,
                     style: AppFonts.poppinsRegular(
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       color: AppColors.whiteColor.withValues(alpha: 0.8),
                     ),
                     textAlign: TextAlign.center,
@@ -104,9 +95,30 @@ class ScenarioDialog extends StatelessWidget {
                   CustomStartConversationButton(
                     label: 'Start Conversation',
                     onPressed: () {
-
-                      // TODO: Navigate to conversation screen
-                      context.push(AppPath.messageScreen);
+                      print('🚀 Starting conversation with scenario: ${scenarioData.scenarioTitle}');
+                      print('📊 ScenarioData details:');
+                      print('   - scenarioId: ${scenarioData.scenarioId}');
+                      print('   - title: ${scenarioData.scenarioTitle}');
+                      print('   - type: ${scenarioData.scenarioType}');
+                      print('   - sourceScreen: home');
+                      
+                      // Close the dialog first
+                      Navigator.of(context).pop();
+                      
+                      // Create new ScenarioData with sourceScreen
+                      final scenarioDataWithSource = ScenarioData(
+                        scenarioId: scenarioData.scenarioId,
+                        scenarioType: scenarioData.scenarioType,
+                        scenarioIcon: scenarioData.scenarioIcon,
+                        scenarioTitle: scenarioData.scenarioTitle,
+                        scenarioDescription: scenarioData.scenarioDescription,
+                        difficulty: scenarioData.difficulty,
+                        sourceScreen: 'home', // Track that user came from Home
+                      );
+                      
+                      // Navigate to message screen with scenario data
+                      GoRouter.of(context).push(AppPath.messageScreen, extra: scenarioDataWithSource);
+                      print('✅ Navigation to message screen initiated from Home');
                     },
                     width: double.infinity,
                   ),
@@ -138,18 +150,21 @@ class ScenarioDialog extends StatelessWidget {
     );
   }
 
-  String _getDescription(String scenarioType) {
-    switch (scenarioType.toLowerCase()) {
-      case 'plane':
-        return 'Practice talking naturally with the person next to you.';
-      case 'social event':
-        return 'Practice conversation at parties or networking.';
-      case 'workplace':
-        return 'Improve your daily professional communication.';
-      case 'daily topic':
-        return 'A fresh AI-generated scenario every 24 hours.';
-      default:
-        return 'Start practicing your conversation skills now.';
+  /// Build icon widget - handles both emoji and SVG
+  Widget _buildIcon() {
+    // Check if icon is emoji (doesn't contain .svg or assets path)
+    if (!scenarioData.scenarioIcon.contains('.svg') && 
+        !scenarioData.scenarioIcon.contains('assets')) {
+      return Text(
+        scenarioData.scenarioIcon,
+        style: TextStyle(fontSize: 24.sp),
+      );
+    } else {
+      return SvgPicture.asset(
+        scenarioData.scenarioIcon,
+        width: 24.w,
+        height: 24.h,
+      );
     }
   }
 }

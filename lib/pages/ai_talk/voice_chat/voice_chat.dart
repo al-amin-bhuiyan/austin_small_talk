@@ -11,12 +11,44 @@ import '../../../view/custom_back_button/custom_back_button.dart';
 import 'voice_chat_controller.dart';
 
 /// Voice Chat Screen - AI Talk with Voice
-class VoiceChatScreen extends StatelessWidget {
+class VoiceChatScreen extends StatefulWidget {
   const VoiceChatScreen({super.key});
 
   @override
+  State<VoiceChatScreen> createState() => _VoiceChatScreenState();
+}
+
+class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingObserver {
+  late final VoiceChatController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<VoiceChatController>();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Check if we need to reconnect when widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.onResumed();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App came to foreground
+      controller.onResumed();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(VoiceChatController());
 
     return Scaffold(
       body: Container(
@@ -31,30 +63,14 @@ class VoiceChatScreen extends StatelessWidget {
             children: [
               // App Bar
               _buildAppBar(context, controller),
-              
+
               // Chat Messages Area
-              Expanded(
-                child: _buildMessagesArea(controller),
-              ),
-              
+              Expanded(child: _buildMessagesArea(controller)),
+
               // Control Buttons
               _buildControlButtons(controller),
-              
+
               SizedBox(height: 16.h),
-              
-              // Listening Text at bottom
-              Obx(() => controller.isListening.value
-                  ? Padding(
-                      padding: EdgeInsets.only(bottom: 24.h),
-                      child: Text(
-                        'Listening...',
-                        style: AppFonts.poppinsRegular(
-                          fontSize: 14,
-                          color: AppColors.whiteColor.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    )
-                  : SizedBox(height: 40.h)),
             ],
           ),
         ),
@@ -69,10 +85,8 @@ class VoiceChatScreen extends StatelessWidget {
       child: Row(
         children: [
           // Back Button
-          CustomBackButton(
-            onPressed: () => controller.goBack(context),
-          ),
-          
+          CustomBackButton(onPressed: () => controller.goBack(context)),
+
           Expanded(
             child: Center(
               child: Text(
@@ -84,7 +98,7 @@ class VoiceChatScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Spacer for alignment
           SizedBox(width: 40.w),
         ],
@@ -95,7 +109,8 @@ class VoiceChatScreen extends StatelessWidget {
   /// Build Messages Area
   Widget _buildMessagesArea(VoiceChatController controller) {
     return Obx(
-      () => controller.messages.isEmpty && controller.recognizedText.value.isEmpty
+      () =>
+          controller.messages.isEmpty && controller.recognizedText.value.isEmpty
           ? Center(
               child: Text(
                 'Tap the mic to start talking',
@@ -108,7 +123,8 @@ class VoiceChatScreen extends StatelessWidget {
           : ListView.builder(
               reverse: true,
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-              itemCount: controller.messages.length +
+              itemCount:
+                  controller.messages.length +
                   (controller.recognizedText.value.isNotEmpty ? 1 : 0),
               itemBuilder: (context, index) {
                 // Temporary bubble for live speech at the very top
@@ -126,9 +142,11 @@ class VoiceChatScreen extends StatelessWidget {
                 // Map reversed index to the correct message
                 final bool hasTemp = controller.recognizedText.value.isNotEmpty;
                 final int adjustedIndex = hasTemp ? index - 1 : index;
-                final int messageIndex = controller.messages.length - 1 - adjustedIndex;
+                final int messageIndex =
+                    controller.messages.length - 1 - adjustedIndex;
 
-                if (messageIndex < 0 || messageIndex >= controller.messages.length) {
+                if (messageIndex < 0 ||
+                    messageIndex >= controller.messages.length) {
                   return const SizedBox.shrink();
                 }
 
@@ -147,8 +165,8 @@ class VoiceChatScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: message.isUser 
-              ? CrossAxisAlignment.end 
+          crossAxisAlignment: message.isUser
+              ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
             Row(
@@ -171,8 +189,8 @@ class VoiceChatScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 6.w),
-                ], 
-                
+                ],
+
                 // Message Bubble
                 Flexible(
                   child: Container(
@@ -183,7 +201,10 @@ class VoiceChatScreen extends StatelessWidget {
                         end: Alignment(1.00, 0.50),
                         colors: message.isUser
                             ? [const Color(0xFF004E92), const Color(0xFF00C2CB)]
-                            : [const Color(0xFF2C2E2F), const Color(0xFF8B9195)],
+                            : [
+                                const Color(0xFF2C2E2F),
+                                const Color(0xFF8B9195),
+                              ],
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: message.isUser
@@ -211,7 +232,7 @@ class VoiceChatScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 // User Avatar (right side for user messages)
                 if (message.isUser) ...[
                   SizedBox(width: 6.w),
@@ -242,174 +263,182 @@ class VoiceChatScreen extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 20.w),
       child: Column(
         children: [
-          // Siri Wave Visualization Area with buttons on top
-          Obx(() => Container(
-            height: 200.h,
-            width: double.infinity,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Siri Wave Background (only when listening)
-                if (controller.isListening.value)
-                  Positioned.fill(
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        Color(0xFF00D9FF),
-                        BlendMode.srcATop,
-                      ),
-                      child: SiriWaveform.ios9(
-                        controller: controller.siriController,
-                        options: const IOS9SiriWaveformOptions(
-                          height: 200,
-                          showSupportBar: true,
+          // Siri Wave Visualization Area
+          Obx(
+            () => Container(
+              height: 250.h,
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Show Siri Wave and WaveBlob ONLY when mic is ON
+                  if (controller.isMicOn.value) ...[
+                    // Siri Wave Background
+                    Positioned.fill(
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(
+                          controller.isSpeaking.value
+                              ? Color(0xFF00D9FF) // AI Speaking - Cyan
+                              : Color(0xFF4CAF50), // Listening - Green
+                          BlendMode.srcATop,
                         ),
-                      ),
-                    ),
-                  )
-                else
-                  // Show hint text when not listening
-                  Positioned(
-                    top: 40.h,
-                    child: Text(
-                      '',
-                      style: AppFonts.poppinsRegular(
-                        fontSize: 16,
-                        color: AppColors.whiteColor.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                
-                // Control Buttons Row - Positioned at center
-                Positioned(
-                  bottom: 50.h,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Pause Button
-                      GestureDetector(
-                        onTap: () => controller.toggleListening(),
-                        child: Container(
-                          width: 40.w,
-                          height: 40.h,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0xFF8B5CF6).withValues(alpha: 0.8),
-                                Color(0xFF6B46C1).withValues(alpha: 0.8)
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
-                              )
-                            ],
-                          ),
-                          child: Icon(
-                            controller.isListening.value ? Icons.pause : Icons.play_arrow,
-                            color: AppColors.whiteColor,
-                            size: 24.sp,
+                        child: SiriWaveform.ios9(
+                          controller: controller.siriController,
+                          options: const IOS9SiriWaveformOptions(
+                            height: 250,
+                            showSupportBar: true,
                           ),
                         ),
                       ),
-                      
-                      SizedBox(width: 20.w),
-                      
-                      // Mic Icon with Blob Animation (ALWAYS VISIBLE in row)
-                      GestureDetector(
-                        onTap: () => controller.toggleListening(),
-                        child: SizedBox(
-                          width: 100.w,
-                          height: 100.h,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Blob animation behind the icon when listening
-                              if (controller.isListening.value)
-                                WaveBlob(
-                                  blobCount: 2,
-                                  speed: 10,
-                                  child: Container(
-                                    width: 100.w,
-                                    height: 100.h,
+                    ),
+                  ] else ...[
+                    // Show hint when mic is off
+                  ],
 
-                                  ),
-                                ),
-                              
-                              // Mic icon container (always visible on top)
-                              Container(
-                                width: 70.w,
-                                height: 70.h,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Color(0xFF00D9FF), Color(0xFF0A84FF)],
-                                  ),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.35),
-                                      blurRadius: 12,
-                                      offset: Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.mic,
-                                  color: AppColors.whiteColor,
-                                  size: 28.sp,
-                                ),
+                  // Mic Button - Center (ONLY control for mic)
+                  Positioned(
+                    child: GestureDetector(
+                      onTap: controller.isConnected.value
+                          ? () => controller.toggleMicrophone()
+                          : null,
+                      child: SizedBox(
+                        width: 120.w,
+                        height: 120.h,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // WaveBlob animation ONLY when mic is ON
+                            if (controller.isMicOn.value)
+                              WaveBlob(
+                                blobCount: 2,
+                                speed: controller.isSpeaking.value ? 15 : 10,
+                                child: Container(width: 120.w, height: 120.h),
+                                colors: [Colors.green, Colors.green],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
-                      SizedBox(width: 20.w),
-                      
-                      // Cross Button
-                      GestureDetector(
-                        onTap: () => controller.goBack(Get.context!),
-                        child: Container(
-                          width: 40.w,
-                          height: 40.h,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0xFF8B5CF6).withValues(alpha: 0.8),
-                                Color(0xFF6B46C1).withValues(alpha: 0.8)
-                              ],
+
+                            // Mic icon
+                            Container(
+                              width: 80.w,
+                              height: 80.h,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: controller.isMicOn.value
+                                      ? controller.isSpeaking.value
+                                            ? [
+                                                Color(0xFF00D9FF),
+                                                Color(0xFF0A84FF),
+                                              ] // AI speaking
+                                            : [
+                                                Color(0xFF4CAF50),
+                                                Color(0xFF45A049),
+                                              ] // Listening
+                                      : [
+                                          Color(0xFF666666),
+                                          Color(0xFF444444),
+                                        ], // Off
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    blurRadius: 12,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                controller.isMicOn.value
+                                    ? Icons.mic
+                                    : Icons.mic_off,
+                                color: AppColors.whiteColor,
+                                size: 24.sp,
+                              ),
                             ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
-                              )
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.close,
-                            color: AppColors.whiteColor,
-                            size: 24.sp,
-                          ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+
+                  // Close Button - Top Right
+                  Positioned(
+                    top: 100.h,
+                    right: 20.w,
+                    child: GestureDetector(
+                      onTap: () => controller.goBack(Get.context!),
+                      child: Container(
+                        width: 40.w,
+                        height: 40.h,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFFF44336).withValues(alpha: 0.8),
+                              Color(0xFFD32F2F).withValues(alpha: 0.8),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          color: AppColors.whiteColor,
+                          size: 24.sp,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
+
+          SizedBox(height: 20.h),
+
+          // Status indicator at bottom
+          Obx(() {
+            String status = '';
+            Color statusColor = AppColors.whiteColor.withValues(alpha: 0.7);
+
+            if (!controller.isConnected.value) {
+              status = 'Connecting...';
+            } else if (!controller.isMicOn.value) {
+              status = 'Mic Off - Tap to start';
+              statusColor = Color(0xFF666666);
+            } else if (controller.isSpeaking.value) {
+              status = '🔊 AI Speaking...';
+              statusColor = Color(0xFF00D9FF);
+            } else if (controller.recognizedText.value.isNotEmpty) {
+              status = '🎤 You: ${controller.recognizedText.value}';
+              statusColor = Color(0xFF4CAF50);
+            } else if (controller.isProcessing.value) {
+              status = '⏳ Processing...';
+            } else {
+              status = '👂 Listening...';
+              statusColor = Color(0xFF4CAF50);
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: 24.h),
+              child: Text(
+                status,
+                style: AppFonts.poppinsRegular(
+                  fontSize: 14,
+                  color: statusColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }),
         ],
       ),
     );

@@ -68,9 +68,9 @@ class CreateScenarioScreen extends StatelessWidget {
         ),
       ),
       
-      bottomNavigationBar: SafeArea(
-        child: CustomNavBar(controller: navBarController),
-      ),
+      // bottomNavigationBar: SafeArea(
+      //   child: CustomNavBar(controller: navBarController),
+      // ),
     );
   }
 
@@ -105,9 +105,8 @@ class CreateScenarioScreen extends StatelessWidget {
   }
 
   Widget _buildScenarioTitle(CreateScenarioController controller) {
-    return Container(
+    return Obx(() => Container(
       width: double.infinity,
-      height: 115.h,
       clipBehavior: Clip.antiAlias,
       decoration: ShapeDecoration(
         color: Colors.white.withValues(alpha: 0.10),
@@ -117,15 +116,29 @@ class CreateScenarioScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Scenario Title',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16.sp,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-              height: 1.05,
-            ),
+          Row(
+            children: [
+              Text(
+                'Scenario Title',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                  height: 1.05,
+                ),
+              ),
+              SizedBox(width: 4.w),
+              Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 16.sp,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 10.h),
           Container(
@@ -153,7 +166,7 @@ class CreateScenarioScreen extends StatelessWidget {
                 height: 1.05,
               ),
               decoration: InputDecoration(
-                hintText: 'Write scenario',
+                hintText: 'Write scenario title (min 3 characters)',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.60),
                   fontSize: 14.sp,
@@ -166,15 +179,26 @@ class CreateScenarioScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (controller.scenarioTitle.value.isNotEmpty && 
+              controller.scenarioTitle.value.trim().length < 3) ...[
+            SizedBox(height: 4.h),
+            Text(
+              'Title must be at least 3 characters',
+              style: TextStyle(
+                color: Colors.red.withValues(alpha: 0.8),
+                fontSize: 12.sp,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildDescription(CreateScenarioController controller) {
-    return Container(
+    return Obx(() => Container(
       width: double.infinity,
-      height: 163.h,
       clipBehavior: Clip.antiAlias,
       decoration: ShapeDecoration(
         color: Colors.white.withValues(alpha: 0.10),
@@ -184,15 +208,29 @@ class CreateScenarioScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Description',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16.sp,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-              height: 1.05,
-            ),
+          Row(
+            children: [
+              Text(
+                'Description',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                  height: 1.05,
+                ),
+              ),
+              SizedBox(width: 4.w),
+              Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 16.sp,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 10.h),
           Container(
@@ -221,7 +259,7 @@ class CreateScenarioScreen extends StatelessWidget {
                 height: 1.05,
               ),
               decoration: InputDecoration(
-                hintText: 'Write a few details about the situation...',
+                hintText: 'Write details about the situation (min 10 characters)...',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.60),
                   fontSize: 14.sp,
@@ -234,9 +272,21 @@ class CreateScenarioScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (controller.description.value.isNotEmpty && 
+              controller.description.value.trim().length < 10) ...[
+            SizedBox(height: 4.h),
+            Text(
+              'Description must be at least 10 characters',
+              style: TextStyle(
+                color: Colors.red.withValues(alpha: 0.8),
+                fontSize: 12.sp,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildDifficultyLevel(CreateScenarioController controller) {

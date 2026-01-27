@@ -13,6 +13,7 @@ import 'package:austin_small_talk/pages/verify_email_from_forget_password/verify
 import 'package:austin_small_talk/pages/ai_talk/ai_talk_controller.dart';
 import 'package:austin_small_talk/pages/ai_talk/message_screen/message_screen_controller.dart';
 import 'package:austin_small_talk/pages/ai_talk/voice_chat/voice_chat_controller.dart';
+import 'package:austin_small_talk/pages/ai_talk/voice_chat/service/voice_chat_manager.dart';
 import 'package:austin_small_talk/pages/profile/profile_controller.dart';
 import 'package:austin_small_talk/pages/profile/edit_profile/edit_profile_controller.dart';
 import 'package:austin_small_talk/pages/home/notification/notification_controller.dart';
@@ -22,35 +23,57 @@ import 'package:get/get.dart';
 
 class Dependency {
   static void init() {
+    // ✅ Initialize WebSocket Manager as PERMANENT singleton
+    // Get.lazyPut<VoiceChatManager>(VoiceChatManager.instance, permanent: true);
+    Get.lazyPut<VoiceChatController>(() => VoiceChatController(), fenix: true);
+
     // Global Controllers
     Get.lazyPut<SplashController>(() => SplashController(), fenix: true);
     Get.lazyPut<NavBarController>(() => NavBarController(), fenix: true);
 
     // Authentication Controllers
     //Get.lazyPut<LoginController>(() => LoginController(), fenix: true);
-    Get.lazyPut<ProfileSecurityController>(() => ProfileSecurityController(),
-        fenix: true);
+    Get.lazyPut<ProfileSecurityController>(
+      () => ProfileSecurityController(),
+      fenix: true,
+    );
 
-    Get.lazyPut<CreateAccountController>(() => CreateAccountController(),
-        fenix: true);
-    Get.lazyPut<ForgetPasswordController>(() => ForgetPasswordController(),
-        fenix: true);
-    Get.lazyPut<VerifyEmailController>(() => VerifyEmailController(),
-        fenix: true);
+    Get.lazyPut<CreateAccountController>(
+      () => CreateAccountController(),
+      fenix: true,
+    );
+    Get.lazyPut<ForgetPasswordController>(
+      () => ForgetPasswordController(),
+      fenix: true,
+    );
+    Get.lazyPut<VerifyEmailController>(
+      () => VerifyEmailController(),
+      fenix: true,
+    );
     Get.lazyPut<VerifyEmailFromForgetPasswordController>(
-        () => VerifyEmailFromForgetPasswordController(), fenix: true);
-    Get.lazyPut<CreateNewPasswordController>(() =>
-        CreateNewPasswordController(), fenix: true);
+      () => VerifyEmailFromForgetPasswordController(),
+      fenix: true,
+    );
+    Get.lazyPut<CreateNewPasswordController>(
+      () => CreateNewPasswordController(),
+      fenix: true,
+    );
 
     // Verified Screen Controllers
-    Get.lazyPut<VerifiedControllerFromCreateNewPassword>(() =>
-        VerifiedControllerFromCreateNewPassword(), fenix: true);
-    Get.lazyPut<VerifiedControllerFromVerifyEmail>(() =>
-        VerifiedControllerFromVerifyEmail(), fenix: true);
+    Get.lazyPut<VerifiedControllerFromCreateNewPassword>(
+      () => VerifiedControllerFromCreateNewPassword(),
+      fenix: true,
+    );
+    Get.lazyPut<VerifiedControllerFromVerifyEmail>(
+      () => VerifiedControllerFromVerifyEmail(),
+      fenix: true,
+    );
 
     // Preferred Gender Controller
-    Get.lazyPut<PreferredGenderController>(() => PreferredGenderController(),
-        fenix: true);
+    Get.lazyPut<PreferredGenderController>(
+      () => PreferredGenderController(),
+      fenix: true,
+    );
 
     // Home Controller
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
@@ -62,25 +85,34 @@ class Dependency {
     Get.lazyPut<AiTalkController>(() => AiTalkController(), fenix: true);
 
     // Message Screen Controller
-    Get.lazyPut<MessageScreenController>(() => MessageScreenController(),
-        fenix: true);
+    Get.lazyPut<MessageScreenController>(
+      () => MessageScreenController(),
+      fenix: true,
+    );
 
     // Voice Chat Controller
     Get.lazyPut<VoiceChatController>(() => VoiceChatController(), fenix: true);
 
     // Profile Controller
     Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
+    Get.lazyPut(() => AiTalkController(), fenix: true);
 
     // Edit Profile Controller
-    Get.lazyPut<EditProfileController>(() => EditProfileController(),
-        fenix: true);
+    Get.lazyPut<EditProfileController>(
+      () => EditProfileController(),
+      fenix: true,
+    );
 
     // Notification Controller
-    Get.lazyPut<NotificationController>(() => NotificationController(),
-        fenix: true);
+    Get.lazyPut<NotificationController>(
+      () => NotificationController(),
+      fenix: true,
+    );
 
     // Create Scenario Controller
-    Get.lazyPut<CreateScenarioController>(() => CreateScenarioController(),
-        fenix: true);
+    Get.lazyPut<CreateScenarioController>(
+      () => CreateScenarioController(),
+      fenix: true,
+    );
   }
 }

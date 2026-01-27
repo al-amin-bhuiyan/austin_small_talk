@@ -1,7 +1,7 @@
 // Create a reusable CustomBackButton widget usable across the project
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
 import '../../utils/app_colors/app_colors.dart';
 
 /// A reusable back button that matches project style.
@@ -30,13 +30,16 @@ class CustomBackButton extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onPressed ?? () {
-        if (Get.isRegistered<GetxController>()) {
-          Get.back();
-        } else if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
+        // Use GoRouter's canPop for proper navigation handling
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          // Fallback to Navigator if GoRouter can't pop
+          Navigator.of(context).maybePop();
         }
       },
       child: Container(
@@ -54,4 +57,5 @@ class CustomBackButton extends StatelessWidget {
       ),
     );
   }
+
 }

@@ -9,8 +9,8 @@ class SharedPreferencesUtil {
   static const String _keyRememberMe = 'remember_me';
   static const String _keyEmail = 'user_email';
   static const String _keyPassword = 'user_password';
-  static const String _keyAccessToken = 'access_token';
-  static const String _keyRefreshToken = 'refresh_token';
+  static const String _keyAccessToken = 'access';
+  static const String _keyRefreshToken = 'refresh';
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = 'user_name';
 

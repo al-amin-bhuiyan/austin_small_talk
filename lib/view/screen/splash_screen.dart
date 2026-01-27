@@ -31,15 +31,15 @@ class SplashScreen extends StatelessWidget {
             final hasValidSession = await TokenManager.hasValidSession();
             
             if (hasValidSession) {
-              // User has valid session, go to home
+              // User has valid session, go to home (no flicker)
               context.go(AppPath.home);
             } else {
-              // Token is invalid and couldn't be refreshed, go to login
-              context.push(AppPath.login);
+              // Token is invalid and couldn't be refreshed, go to login (no flicker)
+              context.go(AppPath.login);
             }
           } else {
-            // User is not logged in, go to login screen
-            context.push(AppPath.login);
+            // User is not logged in, go to login screen (no flicker)
+            context.go(AppPath.login);
           }
         }
       });

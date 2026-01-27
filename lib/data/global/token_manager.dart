@@ -48,7 +48,7 @@ class TokenManager {
       final response = await _apiServices.refreshAccessToken(request);
 
       // Save new access token
-      await SharedPreferencesUtil.instance.setString('access_token', response.accessToken);
+      await SharedPreferencesUtil.instance.setString('access', response.accessToken);
       
       // Update refresh token if provided
       if (response.refreshToken != null && response.refreshToken!.isNotEmpty) {

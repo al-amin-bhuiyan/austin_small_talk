@@ -1,19 +1,27 @@
 class ScenarioModel {
   final int id;
+  final String scenarioId;
   final String scenarioTitle;
   final String description;
   final String difficultyLevel;
 
   ScenarioModel({
     required this.id,
+    required this.scenarioId,
     required this.scenarioTitle,
     required this.description,
     required this.difficultyLevel,
   });
 
   factory ScenarioModel.fromJson(Map<String, dynamic> json) {
+    // API returns ai_scenario_id which is the scenario_id needed for chat
+    final scenarioId = json['ai_scenario_id'] as String? ?? 
+                       json['scenario_id'] as String? ?? 
+                       'scenario_${json['id']}';
+    
     return ScenarioModel(
       id: json['id'],
+      scenarioId: scenarioId,  // This will be the ai_scenario_id from API
       scenarioTitle: json['scenario_title'],
       description: json['description'],
       difficultyLevel: json['difficulty_level'],
@@ -23,6 +31,7 @@ class ScenarioModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'scenario_id': scenarioId,
       'scenario_title': scenarioTitle,
       'description': description,
       'difficulty_level': difficultyLevel,

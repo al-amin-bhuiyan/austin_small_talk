@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/app_route/app_path.dart';
 import '../../core/custom_assets/custom_assets.dart';
+import '../../data/global/scenario_data.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
-import '../../utils/nav_bar/nav_bar.dart';
 import '../../utils/nav_bar/nav_bar_controller.dart';
-import '../../utils/toast_message/toast_message.dart';
 import '../../service/auth/models/scenario_model.dart';
 import 'history_controller.dart';
 
@@ -59,10 +60,23 @@ class HistoryScreen extends StatelessWidget {
                         SizedBox(height: 16.h),
                         _buildSearchBar(controller),
                         SizedBox(height: 20.h),
+                        
+                        // AI Scenario Chat History
                         _buildConversationList(controller, context),
+                        
+                     //   SizedBox(height: 20.h),
+                        
+                        // Create Your Own Scenario Button
+                     //   _buildNewScenarioButton(controller, context),
+                        
                         SizedBox(height: 20.h),
-                        _buildNewScenarioButton(controller,context),
-                        SizedBox(height: 20.h),
+                        
+                        // Created Scenarios Header
+                        _buildCreatedScenariosHeader(),
+                        
+                        SizedBox(height: 16.h),
+                        
+                        // User Created Scenarios List
                         _buildUserScenarios(controller, context),
                       ],
                     ),
@@ -73,9 +87,7 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: CustomNavBar(controller: navBarController),
-      ),
+      // ✅ Nav bar removed - MainNavigation provides it
     );
   }
 
@@ -168,18 +180,49 @@ class HistoryScreen extends StatelessWidget {
 
   Widget _buildConversationList(HistoryController controller, BuildContext context) {
     return Obx(
-      () => Column(
-        children: controller.filteredConversations.map((conversation) {
-          return _buildConversationItem(controller, conversation, context);
-        }).toList(),
-      ),
+      () {
+        // Show loading indicator while fetching
+        if (controller.isLoading.value && controller.filteredConversations.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 40.h),
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            ),
+          );
+        }
+
+        // Show empty state if no conversations
+        if (controller.filteredConversations.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 40.h),
+              child: Text(
+                'No conversations found',
+                style: AppFonts.poppinsRegular(
+                  fontSize: 16,
+                  color: AppColors.whiteColor.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Display conversations
+        return Column(
+          children: controller.filteredConversations.map((conversation) {
+            return _buildConversationItem(controller, conversation, context);
+          }).toList(),
+        );
+      },
     );
   }
 
   Widget _buildConversationItem(
       HistoryController controller, ConversationItem conversation, BuildContext context) {
     return GestureDetector(
-      onTap: () => controller.onConversationTap(conversation.id,  context),
+      onTap: () => controller.onConversationTap(conversation.id, context),
       child: Container(
         margin: EdgeInsets.only(bottom: 12.h),
         padding: EdgeInsets.all(16.w),
@@ -192,17 +235,19 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icon
+            // Icon - Centered vertically
             Container(
-              width: 36.w,
-              height: 36.h,
+              width: 48.w,
+              height: 48.h,
               decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(18.r),
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(24.r),
               ),
-            //  padding: EdgeInsets.all(12.w),
-              child: _getConversationIcon(conversation.icon),
+              child: Center(
+                child: _getConversationIcon(conversation.icon, conversation.isEmoji),
+              ),
             ),
             SizedBox(width: 12.w),
             // Content
@@ -210,34 +255,59 @@ class HistoryScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title + Difficulty Badge
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          conversation.title,
+                          style: AppFonts.poppinsSemiBold(
+                            fontSize: 16,
+                            color: AppColors.whiteColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (conversation.difficulty.isNotEmpty) ...[
+                        SizedBox(width: 8.w),
+                        _buildDifficultyBadge(conversation.difficulty),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  // Description
+                  Text(
+                    conversation.description,
+                    style: AppFonts.poppinsRegular(
+                      fontSize: 13,
+                      color: AppColors.whiteColor.withValues(alpha: 0.65),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8.h),
+                  // Message count (left) and Date (right)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Message count
                       Text(
-                        conversation.title,
-                        style: AppFonts.poppinsSemiBold(
-                          fontSize: 16,
-                          color: AppColors.whiteColor,
+                        'Total ${conversation.messageCount} ${conversation.messageCount == 1 ? 'message' : 'messages'}',
+                        style: AppFonts.poppinsRegular(
+                          fontSize: 12,
+                          color: AppColors.whiteColor.withValues(alpha: 0.5),
                         ),
                       ),
+                      // Date
                       Text(
                         conversation.time,
                         style: AppFonts.poppinsRegular(
                           fontSize: 12,
-                          color: AppColors.whiteColor.withValues(alpha: 0.6),
+                          color: AppColors.whiteColor.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    conversation.preview,
-                    style: AppFonts.poppinsRegular(
-                      fontSize: 14,
-                      color: AppColors.whiteColor.withValues(alpha: 0.7),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -248,7 +318,54 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _getConversationIcon(String iconType) {
+  Widget _buildDifficultyBadge(String difficulty) {
+    Color badgeColor;
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        badgeColor = Color(0xFF10B981); // Green
+        break;
+      case 'medium':
+        badgeColor = Color(0xFFF59E0B); // Orange
+        break;
+      case 'hard':
+        badgeColor = Color(0xFFEF4444); // Red
+        break;
+      default:
+        badgeColor = Color(0xFF6B7280); // Gray
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(6.r),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: 0.4),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        difficulty.toUpperCase(),
+        style: AppFonts.poppinsSemiBold(
+          fontSize: 10,
+          color: badgeColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _getConversationIcon(String iconType, bool isEmoji) {
+    // If it's an emoji, display it as text
+    if (isEmoji) {
+      return Center(
+        child: Text(
+          iconType,
+          style: TextStyle(fontSize: 24.sp),
+        ),
+      );
+    }
+    
+    // Otherwise, use SVG asset
     String iconPath;
     switch (iconType) {
       case 'plan':
@@ -271,11 +388,57 @@ class HistoryScreen extends StatelessWidget {
       iconPath,
       width: 24.w,
       height: 24.h,
-
     );
   }
 
-  Widget _buildNewScenarioButton(HistoryController controller,BuildContext context) {
+  Widget _buildNewScenarioButton(HistoryController controller, BuildContext context) {
+    return GestureDetector(
+      onTap: () => controller.onNewScenario(context),
+      child: Container(
+        width: double.infinity,
+        height: 56.h,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF4B006E),
+              Color(0xFF8B5CF6),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(28.r),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFF8B5CF6).withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_circle_outline,
+              color: AppColors.whiteColor,
+              size: 24.sp,
+            ),
+            SizedBox(width: 12.w),
+            Text(
+              'Create Your Own Scenario',
+              style: AppFonts.poppinsSemiBold(
+                fontSize: 16,
+                color: AppColors.whiteColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreatedScenariosHeader() {
     return Row(
       children: [
         Expanded(
@@ -287,10 +450,10 @@ class HistoryScreen extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
-            'New Scenario',
-            style: AppFonts.poppinsRegular(
+            'Created Scenarios',
+            style: AppFonts.poppinsSemiBold(
               fontSize: 14,
-              color: AppColors.whiteColor.withValues(alpha: 0.6),
+              color: AppColors.whiteColor.withValues(alpha: 0.8),
             ),
           ),
         ),
@@ -342,20 +505,28 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _buildScenarioItem(ScenarioModel scenario, BuildContext context) {
-    // Determine icon based on difficulty level
-    String difficultyIcon = 'create_your_own_scenario'; // default
-    if (scenario.difficultyLevel == 'easy') {
-      difficultyIcon = 'create_your_own_scenario';
-    } else if (scenario.difficultyLevel == 'medium') {
-      difficultyIcon = 'create_your_own_scenario';
-    } else if (scenario.difficultyLevel == 'hard') {
-      difficultyIcon = 'create_your_own_scenario';
-    }
-
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to scenario detail or start conversation
-        ToastMessage.info('Starting scenario: ${scenario.scenarioTitle}');
+        print('🎯 History scenario tapped - ID: ${scenario.id}, Title: ${scenario.scenarioTitle}');
+        print('📝 Scenario ID from API: ${scenario.scenarioId}');
+        
+        // Create scenario data object for message screen
+        final scenarioData = ScenarioData(
+          scenarioId: scenario.scenarioId,  // Use actual scenario_id from API
+          scenarioTitle: scenario.scenarioTitle,
+          scenarioDescription: scenario.description,
+          scenarioIcon: '🎯',  // Default icon for user-created scenarios
+          scenarioType: 'user_created',
+          difficulty: scenario.difficultyLevel,
+          sourceScreen: 'history', // Track that user came from History
+        );
+        
+        print('📤 Navigating to message screen from history');
+        print('📊 ScenarioData: scenarioId=${scenarioData.scenarioId}, title=${scenarioData.scenarioTitle}');
+        print('📌 Source Screen: ${scenarioData.sourceScreen}');
+        
+        // Navigate to message screen
+        context.push(AppPath.messageScreen, extra: scenarioData);
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 12.h),
@@ -369,16 +540,22 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icon
+            // Icon - Centered vertically (same as conversations)
             Container(
-              width: 36.w,
-              height: 36.h,
+              width: 48.w,
+              height: 48.h,
               decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(18.r),
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(24.r),
               ),
-              child: _getConversationIcon(difficultyIcon),
+              child: Center(
+                child: Text(
+                  '🎯', // User-created scenario icon
+                  style: TextStyle(fontSize: 24.sp),
+                ),
+              ),
             ),
             SizedBox(width: 12.w),
             // Content
@@ -386,10 +563,10 @@ class HistoryScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title + Difficulty Badge
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
+                      Flexible(
                         child: Text(
                           scenario.scenarioTitle,
                           style: AppFonts.poppinsSemiBold(
@@ -400,32 +577,45 @@ class HistoryScreen extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: 8.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                        decoration: BoxDecoration(
-                          color: _getDifficultyColor(scenario.difficultyLevel),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Text(
-                          scenario.difficultyLevel.toUpperCase(),
-                          style: AppFonts.poppinsSemiBold(
-                            fontSize: 10,
-                            color: AppColors.whiteColor,
-                          ),
-                        ),
-                      ),
+                      if (scenario.difficultyLevel.isNotEmpty) ...[
+                        SizedBox(width: 8.w),
+                        _buildDifficultyBadge(scenario.difficultyLevel),
+                      ],
                     ],
                   ),
-                  SizedBox(height: 4.h),
+                  SizedBox(height: 6.h),
+                  // Description
                   Text(
                     scenario.description,
                     style: AppFonts.poppinsRegular(
-                      fontSize: 14,
-                      color: AppColors.whiteColor.withValues(alpha: 0.7),
+                      fontSize: 13,
+                      color: AppColors.whiteColor.withValues(alpha: 0.65),
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8.h),
+                  // Status indicator (left aligned)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // "Your Scenario" label
+                      Text(
+                        'Your Scenario',
+                        style: AppFonts.poppinsRegular(
+                          fontSize: 12,
+                          color: AppColors.whiteColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      // Empty space or you can add creation date here
+                      Text(
+                        'Tap to start',
+                        style: AppFonts.poppinsRegular(
+                          fontSize: 12,
+                          color: AppColors.whiteColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -434,18 +624,5 @@ class HistoryScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getDifficultyColor(String difficulty) {
-    switch (difficulty.toLowerCase()) {
-      case 'easy':
-        return Colors.green.withValues(alpha: 0.6);
-      case 'medium':
-        return Colors.orange.withValues(alpha: 0.6);
-      case 'hard':
-        return Colors.red.withValues(alpha: 0.6);
-      default:
-        return Colors.grey.withValues(alpha: 0.6);
-    }
   }
 }

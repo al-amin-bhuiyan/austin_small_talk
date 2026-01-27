@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import '../../core/custom_assets/custom_assets.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
-import '../../utils/nav_bar/nav_bar.dart';
 import '../../utils/nav_bar/nav_bar_controller.dart';
 import 'home_controller.dart';
 
@@ -72,10 +71,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-
-      bottomNavigationBar: SafeArea(
-        child: CustomNavBar(controller: navBarController),
-      ),
+      // ✅ Nav bar removed - MainNavigation provides it
     );
   }
 
@@ -112,53 +108,118 @@ class HomeScreen extends StatelessWidget {
 
   // This widget builds the scenario grid with multiple scenario cards.
   Widget _buildScenarioGrid(HomeController controller, BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildScenarioCard(
-                icon: CustomAssets.plan,
-                title: 'On a Plane',
-                description: 'Talk naturally with someone sitting next to you.',
-                onTap: () => controller.onScenarioTap(context, 'Plane', CustomAssets.plan, 'Plane'),
-              ),
+    return Obx(() {
+      // Show loading indicator while fetching
+      if (controller.isLoading.value && controller.dailyScenarios.isEmpty) {
+        return Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
+        );
+      }
+
+      // Get scenarios from controller
+      final scenarios = controller.dailyScenarios;
+
+      // If no scenarios, show empty state
+      if (scenarios.isEmpty) {
+        return Center(
+          child: Text(
+            'No scenarios available',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16.sp,
             ),
-            SizedBox(width: 15.w),
-            Expanded(
-              child: _buildScenarioCard(
-                icon: CustomAssets.social_event,
-                title: 'Social Event',
-                description: 'Practice conversation at parties or networking.',
-                onTap: () => controller.onScenarioTap(context, 'Social Event', CustomAssets.social_event, 'Social Event'),
-              ),
+          ),
+        );
+      }
+
+      // Build grid with scenarios
+      return Column(
+        children: [
+          // First row
+          if (scenarios.length > 0)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildScenarioCard(
+                    icon: scenarios[0].emoji,
+                    title: scenarios[0].title,
+                    description: scenarios[0].description,
+                    isEmoji: true,
+                    onTap: () => controller.onScenarioTap(
+                      context,
+                      scenarios[0].scenarioId,
+                      scenarios[0].emoji,
+                      scenarios[0].title,
+                      scenarios[0].description,
+                    ),
+                  ),
+                ),
+                if (scenarios.length > 1) ...[
+                  SizedBox(width: 15.w),
+                  Expanded(
+                    child: _buildScenarioCard(
+                      icon: scenarios[1].emoji,
+                      title: scenarios[1].title,
+                      description: scenarios[1].description,
+                      isEmoji: true,
+                      onTap: () => controller.onScenarioTap(
+                        context,
+                        scenarios[1].scenarioId,
+                        scenarios[1].emoji,
+                        scenarios[1].title,
+                        scenarios[1].description,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          // Second row
+          if (scenarios.length > 2) ...[
+            SizedBox(height: 15.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildScenarioCard(
+                    icon: scenarios[2].emoji,
+                    title: scenarios[2].title,
+                    description: scenarios[2].description,
+                    isEmoji: true,
+                    onTap: () => controller.onScenarioTap(
+                      context,
+                      scenarios[2].scenarioId,
+                      scenarios[2].emoji,
+                      scenarios[2].title,
+                      scenarios[2].description,
+                    ),
+                  ),
+                ),
+                if (scenarios.length > 3) ...[
+                  SizedBox(width: 15.w),
+                  Expanded(
+                    child: _buildScenarioCard(
+                      icon: scenarios[3].emoji,
+                      title: scenarios[3].title,
+                      description: scenarios[3].description,
+                      isEmoji: true,
+                      onTap: () => controller.onScenarioTap(
+                        context,
+                        scenarios[3].scenarioId,
+                        scenarios[3].emoji,
+                        scenarios[3].title,
+                        scenarios[3].description,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
-        ),
-        SizedBox(height: 15.h),
-        Row(
-          children: [
-            Expanded(
-              child: _buildScenarioCard(
-                icon: CustomAssets.workplace,
-                title: 'Workplace',
-                description: 'Improve your daily professional communication.',
-                onTap: () => controller.onScenarioTap(context, 'Workplace', CustomAssets.workplace, 'Workplace'),
-              ),
-            ),
-            SizedBox(width: 15.w),
-            Expanded(
-              child: _buildScenarioCard(
-                icon: CustomAssets.daily_topic,
-                title: 'Daily Topic',
-                description: 'A fresh AI-generated scenario every 24 hours.',
-                onTap: () => controller.onScenarioTap(context, 'Daily Topic', CustomAssets.daily_topic, 'Daily Topic'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
 
 // This widget defines the structure of a single scenario card.
@@ -167,12 +228,13 @@ class HomeScreen extends StatelessWidget {
     required String title,
     required String description,
     required VoidCallback onTap,
+    bool isEmoji = false,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 177.w,
-        height: 128.h,
+        height: 158.h,
         padding: EdgeInsets.all(12.w),
         decoration: ShapeDecoration(
           color: const Color(0x33F6F6F6),
@@ -209,21 +271,31 @@ class HomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(321.r),
                     ),
                   ),
-                  child: SvgPicture.asset(
-                    icon,
-                    width: 24.w,
-                    height: 24.h,
-
-                  ),
+                  child: isEmoji
+                      ? Text(
+                          icon,
+                          style: TextStyle(
+                            fontSize: 20.sp,
+                          ),
+                        )
+                      : SvgPicture.asset(
+                          icon,
+                          width: 20.w,
+                          height: 20.h,
+                        ),
                 ),
-                SizedBox(width: 8.w),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: const Color(0xFFF6F6F6),
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.05,
+                SizedBox(width: 4.w),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: const Color(0xFFF6F6F6),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -236,7 +308,7 @@ class HomeScreen extends StatelessWidget {
                 description,
                 style: TextStyle(
                   color: const Color(0xFFF6F6F6),
-                  fontSize: 14.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w400,
                   height: 1.20,
                 ),
@@ -349,9 +421,10 @@ class HomeScreen extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _buildUserProfile(controller),
-          const Spacer(),
           _buildNotificationIcon(controller, context),
         ],
       ),
@@ -359,56 +432,70 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildUserProfile(HomeController controller) {
-    return Container(
-      padding: EdgeInsets.all(2.w),
-
+    return Flexible(
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10.r),
-            child: Image.asset(
-              CustomAssets.person,
+          Obx(() {
+            final imageUrl = controller.userProfileImage.value;
+            return Container(
               width: 50.w,
               height: 50.h,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 50.w,
-                  height: 50.h,
-                  color: Colors.grey,
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 30.sp,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10.r),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: 50.w,
+                        height: 50.h,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 30.sp,
+                          );
+                        },
+                      )
+                    : Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 30.sp,
+                      ),
+              ),
+            );
+          }),
+          SizedBox(width: 5.w),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hi,',
+                  style: AppFonts.poppinsRegular(
+                    fontSize: 12.sp,
+                    color: AppColors.whiteColor.withAlpha(200),
                   ),
-                );
-              },
+                ),
+                Obx(
+                  () => Text(
+                    controller.userName.value,
+                    style: AppFonts.poppinsSemiBold(
+                      fontSize: 14.sp,
+                      color: AppColors.whiteColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(width: 10.w),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hi,',
-                style: AppFonts.poppinsRegular(
-                  fontSize: 12,
-                  color: AppColors.whiteColor.withAlpha(200),
-                ),
-              ),
-              Obx(
-                () => Text(
-                  controller.userName.value,
-                  style: AppFonts.poppinsSemiBold(
-                    fontSize: 14,
-                    color: AppColors.whiteColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(width: 10.w),
         ],
       ),
     );
@@ -421,18 +508,18 @@ class HomeScreen extends StatelessWidget {
         width: 48.w,
         height: 48.h,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             width: 1.w,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2), // Shadow color
-              offset: Offset(0, 4), // Shadow position
-              blurRadius: 6, // Shadow blur
-              spreadRadius: 3, // How much the shadow spreads
+              color: Colors.black.withValues(alpha: 0.2),
+              offset: Offset(0, 4),
+              blurRadius: 6,
+              spreadRadius: 3,
             ),
           ],
         ),
