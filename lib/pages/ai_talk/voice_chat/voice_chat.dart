@@ -24,7 +24,9 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
   @override
   void initState() {
     super.initState();
+    // ✅ Get the global VoiceChatController (no tag since it's registered globally)
     controller = Get.find<VoiceChatController>();
+    print('🎙️ Using global VoiceChatController');
     WidgetsBinding.instance.addObserver(this);
     
     // Check if we need to reconnect when widget is built
@@ -47,6 +49,8 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
 
@@ -64,8 +68,16 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
               // App Bar
               _buildAppBar(context, controller),
 
-              // Chat Messages Area
-              Expanded(child: _buildMessagesArea(controller)),
+              // Chat Messages Area with RefreshIndicator
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: controller.refreshVoiceChat,
+                  color: AppColors.whiteColor,
+                  backgroundColor: Color(0xFF4B006E),
+                  strokeWidth: 3.0,
+                  child: _buildMessagesArea(controller),
+                ),
+              ),
 
               // Control Buttons
               _buildControlButtons(controller),
@@ -236,18 +248,45 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
                 // User Avatar (right side for user messages)
                 if (message.isUser) ...[
                   SizedBox(width: 6.w),
-                  Container(
-                    width: 32.w,
-                    height: 32.h,
-                    margin: EdgeInsets.only(left: 8.w),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8.r),
-                      image: DecorationImage(
-                        image: AssetImage(CustomAssets.person),
-                        fit: BoxFit.cover,
+                  Obx(() {
+                    final userImage = controller.userProfileImage.value ?? '';
+                    return Container(
+                      width: 32.w,
+                      height: 32.h,
+                      margin: EdgeInsets.only(left: 8.w),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8.r),
+                        color: Colors.grey[800],
                       ),
-                    ),
-                  ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: userImage.isNotEmpty
+                            ? Image.network(
+                                userImage,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    CustomAssets.person,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                CustomAssets.person,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    );
+                  }),
                 ],
               ],
             ),
@@ -443,4 +482,5 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
       ),
     );
   }
+
 }

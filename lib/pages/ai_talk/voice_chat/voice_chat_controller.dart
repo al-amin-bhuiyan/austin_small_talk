@@ -9,6 +9,7 @@ import 'package:austin_small_talk/service/auth/api_service/api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as ApiService;
 import 'package:siri_wave/siri_wave.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -17,30 +18,26 @@ import 'audio/audio_session_config.dart';
 import 'audio/barge_in_detector.dart';
 import 'audio/mic_streamer.dart';
 import 'audio/tts_player.dart';
+import 'audio/voice_activity_detector.dart';
 
-/// Voice Chat Controller - WebSocket-based voice interaction with AI
 class VoiceChatController extends GetxController {
-  // Session ID - generated once per controller instance
   final String sessionId = const Uuid().v4();
   final _wsClient = VoiceWsClient();
 
-  // WebSocket
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
   final userProfileImage = Rxn<String>();
+  bool _isInitializing = false;
 
-  // Audio components
   MicStreamer? _micStreamer;
   TtsPlayer? _ttsPlayer;
   BargeInDetector? _bargeInDetector;
 
-  // Siri Wave Controller
   final IOS9SiriWaveformController siriController = IOS9SiriWaveformController(
     amplitude: 0.5,
     speed: 0.2,
   );
 
-  // Observable states
   final isMicOn = false.obs;
   final isProcessing = false.obs;
   final isSpeaking = false.obs;
@@ -50,441 +47,275 @@ class VoiceChatController extends GetxController {
   final messages = <ChatMessage>[].obs;
   final currentAmplitude = 0.5.obs;
 
-  // Subscriptions
+  String _lastFinalText = '';
+  DateTime? _lastFinalTimestamp;
+
+  final useVad = true.obs;
+  final framesSent = 0.obs;
+  final framesSkipped = 0.obs;
+  final bandwidthSaved = '0 KB'.obs;
+
   StreamSubscription? _micSub;
-
-  // Scenario data
   ScenarioData? scenarioData;
-
-  // Animation timer
   Timer? _animationTimer;
+  bool _lastVadSpeechEnded = false; // ✅ Prevent duplicate audio_end
 
   @override
   void onInit() {
     print('═══════════════════════════════════════════════════════════');
-    print('🚀 VoiceChatController.onInit() - Controller Initializing');
+    print('🚀 VoiceChatController.onInit()');
     print('═══════════════════════════════════════════════════════════');
     super.onInit();
     _startContinuousAnimation();
-    print('✅ onInit() complete - Animation started');
-    print('💡 WebSocket will connect when page appears (onReady)');
     _loadUserProfileImage();
-
   }
 
   @override
   void onReady() {
     print('═══════════════════════════════════════════════════════════');
-    print('🎯 VoiceChatController.onReady() - Page Appeared');
+    print('🎯 VoiceChatController.onReady()');
     print('═══════════════════════════════════════════════════════════');
     super.onReady();
-    // Initialize audio components and connect WebSocket when page appears
+    if (_isInitializing) {
+      print('⚠️ Already initializing - skipping');
+      return;
+    }
     _initializeVoiceChat();
-    print('✅ onReady() complete - Voice chat initializing');
   }
 
-  /// Called when page reappears after being hidden (e.g., after back button)
   void onResumed() {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
     print('║         PAGE RESUMED - CHECKING CONNECTION STATE          ║');
     print('╚═══════════════════════════════════════════════════════════╝');
 
-    // Check if WebSocket is disconnected and needs reconnection
-    if (!isConnected.value) {
-      print('⚠️  WebSocket disconnected - reconnecting...');
+    final needsReconnect = _channel == null ||
+        _channel!.closeCode != null ||
+        !isConnected.value;
+
+    if (needsReconnect && !_isInitializing) {
+      print('⚠️ WebSocket disconnected - reconnecting...');
       _initializeVoiceChat();
+    } else if (_isInitializing) {
+      print('⏳ Already initializing - skipping');
     } else {
-      print('✅ WebSocket still connected - no action needed');
+      print('✅ WebSocket still connected');
     }
   }
 
   @override
   void onClose() {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
-    print('║       VOICE CHAT PAGE CLOSING - CLEANUP STARTING          ║');
+    print('║       VOICE CHAT CLOSING - CLEANUP                        ║');
     print('╚═══════════════════════════════════════════════════════════╝');
-    // Cleanup everything when page closes
     _cleanup();
     super.onClose();
-    print('✅ Controller disposed - All resources cleaned');
-    print('═══════════════════════════════════════════════════════════');
   }
 
   void setScenarioData(ScenarioData data) {
-    print('═══════════════════════════════════════════════════════════');
-    print('📋 Setting Scenario Data:');
-    print('   Title: ${data.scenarioTitle}');
-    print('   ID: ${data.scenarioId}');
-    print('   Difficulty: ${data.difficulty}');
+    print('📋 Setting Scenario: ${data.scenarioTitle}');
 
-    // Check if this is a different scenario than the current one
     final isDifferentScenario = scenarioData != null &&
-                                scenarioData!.scenarioId != data.scenarioId;
+        scenarioData!.scenarioId != data.scenarioId;
 
     if (isDifferentScenario) {
-      print('🔄 DIFFERENT SCENARIO DETECTED IN VOICE CHAT');
-      print('   Previous: ${scenarioData!.scenarioId}');
-      print('   New: ${data.scenarioId}');
-      print('   Clearing previous messages...');
-
-      // Clear previous chat messages
       messages.clear();
-      print('   ✅ Messages cleared (${messages.length} remaining)');
-    } else if (scenarioData != null && scenarioData!.scenarioId == data.scenarioId) {
-      print('✅ Same scenario - keeping existing messages (${messages.length} messages)');
-    } else {
-      print('🆕 First time setting scenario data');
     }
-
-    print('═══════════════════════════════════════════════════════════');
     scenarioData = data;
   }
 
   Future<void> _initializeVoiceChat() async {
-    print('');
+    if (_isInitializing) return;
+    _isInitializing = true;
+
     print('═══════════════════════════════════════════════════════════');
-    print('🎬 INITIALIZING VOICE CHAT (PAGE APPEARED)');
+    print('🎬 INITIALIZING VOICE CHAT');
     print('═══════════════════════════════════════════════════════════');
 
     try {
       print('📦 Step 1/4: Configuring Audio Session');
       await AudioSessionConfigHelper.configureForVoiceChat();
-      print('   ✅ Audio session configured');
 
       print('📦 Step 2/4: Creating TTS Player');
       _ttsPlayer = TtsPlayer(sampleRate: 24000, numChannels: 1);
       await _ttsPlayer!.init();
-      print('   ✅ TTS Player created (16kHz, mono)');
 
       print('📦 Step 3/4: Creating Barge-in Detector');
-      _bargeInDetector = BargeInDetector(threshold: 0.15, requiredFrames: 3);
-      print('   ✅ Barge-in detector created (threshold: 0.15, frames: 3)');
+      _bargeInDetector = BargeInDetector(baseThreshold: 0.20, requiredFrames: 3);
 
-      print('📦 Step 4/4: Connecting to WebSocket Server');
+      print('📦 Step 4/4: Connecting to WebSocket');
       await _connectToWebSocket();
 
-      print('');
-      print('✅✅✅ VOICE CHAT READY - PAGE IS ACTIVE ✅✅✅');
-      print('💡 Mic will start when user presses the mic button');
-      print('═══════════════════════════════════════════════════════════');
+      print('✅ VOICE CHAT READY');
+      _isInitializing = false;
     } catch (e, stackTrace) {
-      print('');
-      print('❌❌❌ INITIALIZATION FAILED ❌❌❌');
-      print('Error: $e');
-      print('Stack trace:');
+      print('❌ INITIALIZATION FAILED: $e');
       print(stackTrace);
-      print('═══════════════════════════════════════════════════════════');
-      _showError('Failed to initialize voice chat: $e');
+      _isInitializing = false;
+      _showError('Failed to initialize: $e');
     }
   }
 
   String _buildWsUrl() {
-    // Use voice chat WebSocket URL from API constants (voice server: ws://10.10.7.114:8000/ws/chat)
-    final accessToken = SharedPreferencesUtil.getAccessToken() ?? '';
-    return '${ApiConstant.voiceChatWs}?token=$accessToken';
+    return ApiConstant.voiceChatWs;
   }
 
   Future<void> _connectToWebSocket() async {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
-    print('║        CONNECTING TO WEBSOCKET (PAGE APPEARED)            ║');
+    print('║        CONNECTING TO WEBSOCKET                            ║');
     print('╚═══════════════════════════════════════════════════════════╝');
 
     try {
       final wsUrl = _buildWsUrl();
-      print('🔌 WebSocket URL: $wsUrl');
-      print('📍 Connecting...');
+      print('🔌 URL: $wsUrl');
 
-      // Create WebSocket connection
+      final accessToken = SharedPreferencesUtil.getAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        throw Exception('No access token');
+      }
+
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       print('✅ WebSocket channel created');
 
-      print('👂 Setting up message listener...');
       _wsSub = _channel!.stream.listen(
-        (msg) {
-          print('📥 Message received from server');
-          _handleWebSocketMessage(msg);
-        },
+            (msg) => _handleWebSocketMessage(msg),
         onError: (error) {
-          print('');
-          print('❌❌❌ WEBSOCKET ERROR ❌❌❌');
-          print('Error: $error');
-          print('═══════════════════════════════════════════════════════════');
+          print('❌ WebSocket error: $error');
           isConnected.value = false;
         },
         onDone: () {
-          print('');
-          print('🔌 WebSocket connection closed (page may have closed)');
-          print('═══════════════════════════════════════════════════════════');
+          print('🔌 WebSocket closed');
           isConnected.value = false;
         },
+        cancelOnError: false,
       );
-      print('✅ Message listener active');
 
       isConnected.value = true;
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║      ✅ WEBSOCKET CONNECTED - READY FOR VOICE CHAT ✅     ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
+      print('✅ WEBSOCKET CONNECTED');
       print('📋 Session ID: $sessionId');
-      print('🎤 Press mic button to start talking');
-      print('═══════════════════════════════════════════════════════════');
-    } catch (e) {
-      print('❌ WebSocket connection failed: $e');
-      throw Exception('Failed to connect to voice server');
+
+    } catch (e, stackTrace) {
+      print('❌ CONNECTION FAILED: $e');
+      isConnected.value = false;
+      throw Exception('Failed to connect: $e');
     }
   }
 
   void _handleWebSocketMessage(dynamic msg) {
-    print('');
-    print('┌───────────────────────────────────────────────────────────┐');
-    print('│           INCOMING WEBSOCKET MESSAGE                      │');
-    print('└───────────────────────────────────────────────────────────┘');
-
     // ═══════════════════════════════════════════════════════════════
-    // 1️⃣ BINARY MESSAGE = TTS AUDIO (PCM16, 16kHz, mono, 640 bytes/frame)
+    // BINARY MESSAGE = TTS AUDIO
     // ═══════════════════════════════════════════════════════════════
     if (msg is Uint8List || msg is List<int>) {
-      final Uint8List audioData = msg is Uint8List
-          ? msg
-          : Uint8List.fromList(msg);
 
-      print('📨 Message Type: BINARY (TTS Audio)');
-      print('📏 Audio Length: ${audioData.length} bytes');
-      print('🎵 Format: PCM16, 16kHz, mono');
+      final Uint8List audioData = msg is Uint8List ? msg : Uint8List.fromList(msg);
+      print('🔊 TTS Audio: ${audioData.length} bytes');
 
-      // ✅ Add raw PCM16 audio to player
       _ttsPlayer?.addFrame(audioData);
 
-      // Update speaking state
       if (!isSpeaking.value) {
         isSpeaking.value = true;
         currentAmplitude.value = 0.8;
         siriController.amplitude = 0.8;
-        print('🔊 isSpeaking = true (AI started speaking)');
       }
-
-      print('✅ Audio frame added to TTS player');
-      print('═══════════════════════════════════════════════════════════');
-      return; // Exit - audio handled
+      return;
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // 2️⃣ JSON MESSAGE = CONTROL MESSAGES (stt_ready, stt_final, etc.)
+    // JSON MESSAGE = CONTROL MESSAGES
     // ═══════════════════════════════════════════════════════════════
     if (msg is String) {
-      print('📨 Message Type: TEXT (JSON)');
-      print('📏 Message Length: ${msg.length} characters');
-
-      if (msg.length <= 500) {
-        print('📄 Full Message: $msg');
-      } else {
-        print('📄 Message (truncated): ${msg.substring(0, 500)}...');
-      }
+      print('📨 JSON: $msg');
 
       try {
-        final jsonMsg = jsonDecode(msg) as Map<String, dynamic>;
-        final type = jsonMsg['type'];
-        print('🏷️  Parsed Type: $type');
-        print('');
+        final data = jsonDecode(msg) as Map<String, dynamic>;
+        final type = data['type'] as String?;
 
         switch (type) {
-          // ─────────────────────────────────────────────────────────
-          // SESSION READY
-          // ─────────────────────────────────────────────────────────
           case 'stt_ready':
-          case 'session_ready':
-            print(
-              '╔═══════════════════════════════════════════════════════════╗',
-            );
-            print('║      ✅✅✅ stt_ready RECEIVED! ✅✅✅                      ║');
-            print(
-              '╚═══════════════════════════════════════════════════════════╝',
-            );
-            print('📋 Session ID: ${jsonMsg['session_id'] ?? 'N/A'}');
-            print('🎯 Setting isSessionReady = true');
+            print('✅ STT READY - Server ready to receive audio');
             isSessionReady.value = true;
-            print('✅ isSessionReady is now: ${isSessionReady.value}');
-            print('');
-            print(
-              '╔═══════════════════════════════════════════════════════════╗',
-            );
-            print(
-              '║     STEP 3: NOW READY TO SEND AUDIO                      ║',
-            );
-            print(
-              '╚═══════════════════════════════════════════════════════════╝',
-            );
-            print('🎤 Microphone can now stream audio to server');
-            print('📡 Audio frames will be sent starting from next frame');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // STT PARTIAL (Live transcription)
-          // ─────────────────────────────────────────────────────────
           case 'stt_partial':
-            final text = jsonMsg['text'] ?? '';
+            final text = data['text'] as String? ?? '';
+            print('📝 Partial: $text');
             recognizedText.value = text;
-            print('🎤 STT PARTIAL (Live): "$text"');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // STT FINAL (Complete transcription)
-          // ─────────────────────────────────────────────────────────
           case 'stt_final':
-            final text = jsonMsg['text'] ?? '';
-            print('🎯 STT FINAL (Complete): "$text"');
-            _addUserMessage(text);
-            recognizedText.value = '';
-            print('✅ User message added to chat history');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            final text = data['text'] as String? ?? '';
+            print('✅ Final STT: $text');
+
+            // ✅ Prevent duplicate messages
+            final now = DateTime.now();
+            final isDuplicate = text == _lastFinalText &&
+                _lastFinalTimestamp != null &&
+                now.difference(_lastFinalTimestamp!).inMilliseconds < 2000;
+
+            if (text.isNotEmpty && !isDuplicate) {
+              recognizedText.value = text;
+              _addUserMessage(text);
+              _lastFinalText = text;
+              _lastFinalTimestamp = now;
+            } else if (isDuplicate) {
+              print('⚠️ Duplicate STT ignored: $text');
+            }
+            isProcessing.value = true;
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // TTS START
-          // ─────────────────────────────────────────────────────────
-          case 'tts_start':
-            print('🔊 TTS START - AI about to speak');
-            print('   Response ID: ${jsonMsg['response_id'] ?? 'N/A'}');
-            _ttsPlayer?.clear();
-            isSpeaking.value = true;
-            currentAmplitude.value = 0.8;
-            siriController.amplitude = 0.8;
-            print('   🧹 Audio buffer cleared');
-            print('   🔊 isSpeaking = true');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
-            break;
-
-          // ─────────────────────────────────────────────────────────
-          // TTS SENTENCE START
-          // ─────────────────────────────────────────────────────────
-          case 'tts_sentence_start':
-            final text = jsonMsg['text'] ?? '';
-            print('📝 TTS SENTENCE START');
-            print('   Text: "$text"');
-            _ttsPlayer?.onSentenceStart();
-            isSpeaking.value = true;
-            currentAmplitude.value = 0.8;
-            siriController.amplitude = 0.8;
-            print('   ✅ Sentence buffer prepared');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
-            break;
-
-          // ─────────────────────────────────────────────────────────
-          // TTS SENTENCE END
-          // ─────────────────────────────────────────────────────────
-          case 'tts_sentence_end':
-            final text = jsonMsg['text'] ?? '';
-            print('✅ TTS SENTENCE END');
-            print('   Text: "$text"');
-            _ttsPlayer?.onSentenceEnd();
-            print('   🔊 Playing buffered audio');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
-            break;
-
-          // ─────────────────────────────────────────────────────────
-          // AI REPLY TEXT
-          // ─────────────────────────────────────────────────────────
           case 'ai_reply_text':
-            final text = jsonMsg['text'] ?? '';
-            print('🤖 AI REPLY TEXT: "$text"');
+            final text = data['text'] as String? ?? '';
+            print('🤖 AI Reply: $text');
             _addAiMessage(text);
-            print('   ✅ AI message added to chat history');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            isProcessing.value = false;
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // TTS END/COMPLETE
-          // ─────────────────────────────────────────────────────────
+          case 'tts_start':
+            print('🔊 TTS Starting...');
+            isSpeaking.value = true;
+            _ttsPlayer?.onSentenceStart();
+            
+            // ✅ ECHO CANCELLATION: Suppress VAD during AI playback
+            _micStreamer?.vad.setPlaybackState(true);
+            print('🔇 VAD suppressed during AI speech');
+            break;
+
           case 'tts_end':
-          case 'tts_complete':
-            print('✅ TTS COMPLETE - AI finished speaking');
-            print('   Response ID: ${jsonMsg['response_id'] ?? 'N/A'}');
+            print('🔊 TTS Ended');
             isSpeaking.value = false;
+            _ttsPlayer?.onSentenceEnd();
             currentAmplitude.value = 0.5;
             siriController.amplitude = 0.5;
-            print('   🔊 isSpeaking = false');
-            print('   👂 Back to listening mode');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            
+            // ✅ ECHO CANCELLATION: Wait 500ms before resuming VAD
+            // This prevents picking up residual speaker audio
+            Future.delayed(Duration(milliseconds: 500), () {
+              _micStreamer?.vad.setPlaybackState(false);
+              print('🎤 VAD resumed - ready for user speech');
+            });
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // CANCELLED
-          // ─────────────────────────────────────────────────────────
           case 'cancelled':
-            print('🚫 CANCELLED - Request cancelled by server');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            print('🛑 Cancelled by server');
+            isSpeaking.value = false;
+            isProcessing.value = false;
+            
+            // ✅ Resume VAD after cancellation
+            _micStreamer?.vad.setPlaybackState(false);
+            print('🎤 VAD resumed after cancellation');
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // INTERRUPTED (Barge-in)
-          // ─────────────────────────────────────────────────────────
-          case 'interrupted':
-            print('🛑 INTERRUPTED - User barged in during AI speech');
-            print('   Response ID: ${jsonMsg['response_id'] ?? 'N/A'}');
-            _handleInterruption();
-            print('   ✅ Interruption handled');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
-            break;
-
-          // ─────────────────────────────────────────────────────────
-          // ERROR
-          // ─────────────────────────────────────────────────────────
           case 'error':
-            final errorMsg = jsonMsg['message'] ?? 'Unknown error';
-            print('❌ SERVER ERROR: $errorMsg');
-            _showError(errorMsg);
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            final message = data['message'] as String? ?? 'Unknown error';
+            print('❌ Server error: $message');
+            _showError(message);
             break;
 
-          // ─────────────────────────────────────────────────────────
-          // UNKNOWN MESSAGE TYPE
-          // ─────────────────────────────────────────────────────────
           default:
-            print('⚠️  UNKNOWN MESSAGE TYPE: $type');
-            print('   Full message: $jsonMsg');
-            print(
-              '═══════════════════════════════════════════════════════════',
-            );
+            print('❓ Unknown type: $type');
         }
-      } catch (e, stackTrace) {
-        print('❌ ERROR PARSING JSON MESSAGE');
-        print('   Error: $e');
-        print('   Raw message: $msg');
-        print('   Stack trace:');
-        print(stackTrace);
-        print('═══════════════════════════════════════════════════════════');
+      } catch (e) {
+        print('❌ JSON parse error: $e');
       }
-    } else {
-      print('❓ UNKNOWN MESSAGE FORMAT');
-      print('   Type: ${msg.runtimeType}');
-      print('═══════════════════════════════════════════════════════════');
     }
   }
 
@@ -493,271 +324,256 @@ class VoiceChatController extends GetxController {
     _ttsPlayer?.stop();
     currentAmplitude.value = 0.5;
     siriController.amplitude = 0.5;
+    
+    // ✅ Resume VAD immediately on interruption (user is speaking)
+    _micStreamer?.vad.setPlaybackState(false);
+    print('🎤 VAD resumed after interruption');
   }
 
   void _addUserMessage(String text) {
-    messages.add(
-      ChatMessage(text: text, isUser: true, timestamp: DateTime.now()),
-    );
+    messages.add(ChatMessage(text: text, isUser: true, timestamp: DateTime.now()));
   }
 
   void _addAiMessage(String text) {
-    messages.add(
-      ChatMessage(text: text, isUser: false, timestamp: DateTime.now()),
-    );
+    messages.add(ChatMessage(text: text, isUser: false, timestamp: DateTime.now()));
   }
 
-  /// Toggle microphone ON/OFF - ONLY way to control mic
   Future<void> toggleMicrophone() async {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
     print('║            🎤 MICROPHONE BUTTON PRESSED                   ║');
     print('╚═══════════════════════════════════════════════════════════╝');
-    print('📊 Current Mic State: ${isMicOn.value ? "🟢 ON" : "🔴 OFF"}');
-    print('🎯 Action: ${isMicOn.value ? "Turn OFF" : "Turn ON"}');
+    print('📊 Current: ${isMicOn.value ? "ON" : "OFF"}');
 
     if (isMicOn.value) {
-      // User pressed button while mic is ON → Turn it OFF
       await _stopMicrophone();
     } else {
-      // User pressed button while mic is OFF → Turn it ON
       await _startMicrophone();
     }
   }
 
   Future<void> _startMicrophone() async {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
     print('║              STARTING MICROPHONE                          ║');
     print('╚═══════════════════════════════════════════════════════════╝');
 
-    if (!isConnected.value) {
-      print('❌ Cannot start microphone - Not connected to WebSocket');
-      print('═══════════════════════════════════════════════════════════');
-      _showError('Not connected to server');
+    if (!isConnected.value || _channel == null || _channel!.closeCode != null) {
+      print('❌ WebSocket not healthy - cannot start microphone');
+      _showError('Connection lost - please try again');
       return;
     }
 
-    print('✅ WebSocket is connected');
-
     try {
-      // ╔═══════════════════════════════════════════════════════════╗
-      // ║  STEP 0: Cleanup any previous recorder instance           ║
-      // ╚═══════════════════════════════════════════════════════════╝
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║     STEP 0: CLEANING UP PREVIOUS INSTANCES               ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
-
+      // STEP 0: Cleanup previous (EXTENDED DELAY)
       if (_micStreamer != null) {
-        print('⚠️  Found existing MicStreamer - cleaning up...');
+        print('⚠️ Cleaning up previous MicStreamer...');
         await _micSub?.cancel();
         await _micStreamer!.stop();
         await _micStreamer!.dispose();
         _micStreamer = null;
-        print('✅ Previous MicStreamer cleaned up');
       }
+      // ✅ INCREASED DELAY - Give OS time to release audio resources
+      await Future.delayed(Duration(milliseconds: 300));
 
-      // Small delay to ensure audio resources are released
-      await Future.delayed(Duration(milliseconds: 100));
-      print('✅ Audio resources released');
-
-      // ╔═══════════════════════════════════════════════════════════╗
-      // ║  STEP 1: Send stt_start when mic button is pressed        ║
-      // ╚═══════════════════════════════════════════════════════════╝
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║     STEP 1: SENDING stt_start TO SERVER                  ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
-
+      // STEP 1: Send stt_start
+      print('📤 Sending stt_start...');
       final startMessage = {
         'type': 'stt_start',
         'session_id': sessionId,
         'voice': 'onyx',
         if (scenarioData != null) 'scenario_id': scenarioData!.scenarioId,
+        'audio': {
+          'codec': 'pcm16',
+          'sr': 16000,
+          'ch': 1,
+          'frame_ms': 20,
+        },
       };
-
-      print('📤 Sending stt_start: ${jsonEncode(startMessage)}');
       _channel?.sink.add(jsonEncode(startMessage));
-      print('✅ stt_start sent to server');
+      print('✅ stt_start sent');
 
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║     STEP 2: WAITING FOR stt_ready RESPONSE               ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
+      // STEP 2: Wait for stt_ready
       print('⏳ Waiting for stt_ready...');
-
-      // Wait for stt_ready
-      await Future.delayed(Duration(milliseconds: 500));
-
-      if (!isSessionReady.value) {
-        print('⚠️  stt_ready not received yet, but starting mic anyway');
+      int waitCount = 0;
+      while (!isSessionReady.value && waitCount < 30) {
+        await Future.delayed(Duration(milliseconds: 100));
+        waitCount++;
       }
 
-      // ╔═══════════════════════════════════════════════════════════╗
-      // ║  STEP 3: Start MicStreamer (using SAME WebSocket)         ║
-      // ╚═══════════════════════════════════════════════════════════╝
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║       STEP 3: STARTING AUDIO CAPTURE                     ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
+      if (!isSessionReady.value) {
+        throw Exception('Server not ready after 3s timeout');
+      }
+      print('✅ stt_ready received');
 
-      print(
-        '🎙️  Creating MicStreamer with SAME WebSocket (PCM16, 16kHz, mono)',
-      );
-      _micStreamer = MicStreamer(channel: _channel!); // ✅ Use existing channel
+      // STEP 3: Create MicStreamer and WAIT for initialization
+      print('🎙️ Creating MicStreamer (PCM16, 16kHz, mono)...');
+      _micStreamer = MicStreamer(channel: _channel!);
 
-      print('🔧 Initializing MicStreamer...');
+      // ✅ WAIT for init to complete
       await _micStreamer!.init();
       print('✅ MicStreamer initialized');
 
-      print('▶️  Starting audio capture...');
-      print('   Format: PCM16, 16kHz, mono');
-      print('   Frame size: 640 bytes (20ms)');
-      await _micStreamer!.start();
-      print('✅ Audio capture started');
+      // ✅ ADDITIONAL DELAY - Ensure recorder is fully open
+      await Future.delayed(Duration(milliseconds: 100));
 
+      // STEP 4: Start recording
+      print('🎙️ Starting recorder...');
+      await _micStreamer!.start();
+      print('✅ MicStreamer started');
+
+      // STEP 5: Listen to frames
       int frameCount = 0;
       int audioBytesSent = 0;
 
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║         AUDIO STREAM LISTENER ACTIVATED                  ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
-
-      // Listen to mic frames
       _micSub = _micStreamer!.frames.listen(
-        (frame) async {
+            (frame) async {
           frameCount++;
 
-          // Log first 5 frames, then every 50th frame
-          if (frameCount <= 5 || frameCount % 50 == 0) {
-            print('🎙️  Frame #$frameCount received (${frame.length} bytes)');
+          if (frameCount <= 5) {
+            print('🎙️ Frame #$frameCount: ${frame.length} bytes');
+          } else if (frameCount % 50 == 0) {
+            print('🎙️ Frame #$frameCount: ${frame.length} bytes (total: ${(audioBytesSent / 1024).toStringAsFixed(1)} KB)');
           }
 
-          // ✅ Send audio frames directly (ALWAYS send, no isSessionReady check needed)
-          _channel?.sink.add(frame);
-          audioBytesSent += frame.length;
+          bool shouldSendFrame = true;
+          if (useVad.value) {
+            final vadResult = _micStreamer!.processFrameWithVad(frame);
+            shouldSendFrame = vadResult.shouldSend;
 
-          // Log every 10 frames sent
-          if (frameCount % 10 == 0) {
-            print(
-              '📤 Sent ${(audioBytesSent / 1024).toStringAsFixed(1)} KB to server (frame #$frameCount)',
-            );
+            if (vadResult.speechStarted) {
+              print('🎤 VAD: Speech started');
+              _lastVadSpeechEnded = false;
+            }
+
+            if (vadResult.speechEnded && !_lastVadSpeechEnded) {
+              print('🔇 VAD: Speech ended - sending audio_end');
+              _channel?.sink.add(jsonEncode({'type': 'audio_end'}));
+              _lastVadSpeechEnded = true;
+            }
+
+            updateVadStats(_micStreamer!.framesSent, _micStreamer!.framesSkipped);
           }
 
-          // Check for barge-in if AI is speaking
-          if (isSpeaking.value) {
-            final shouldInterrupt = _bargeInDetector!.processPcm16Frame(
-              Uint8List.fromList(frame),
-            );
-            if (shouldInterrupt) {
-              print('');
-              print(
-                '╔═══════════════════════════════════════════════════════════╗',
-              );
-              print(
-                '║          🛑 BARGE-IN DETECTED! 🛑                         ║',
-              );
-              print(
-                '╚═══════════════════════════════════════════════════════════╝',
-              );
-              print('👤 User started speaking while AI was talking');
-              print('🛑 Stopping AI audio playback...');
-              await _ttsPlayer?.stop();
-              print('📤 Sending cancel signal to server...');
-              _channel?.sink.add(jsonEncode({'type': 'cancel'}));
-              _bargeInDetector!.reset();
-              isSpeaking.value = false;
-              print('✅ Barge-in handled - AI stopped, listening to user');
-              print(
-                '═══════════════════════════════════════════════════════════',
-              );
+          if (shouldSendFrame && _channel != null) {
+            try {
+              _channel!.sink.add(frame);
+              audioBytesSent += frame.length;
+            } catch (e) {
+              print('❌ Failed to send frame: $e');
             }
           }
 
-          // Update amplitude for animation
+          // Barge-in detection
+          if (isSpeaking.value && _bargeInDetector != null) {
+            final shouldInterrupt = _bargeInDetector!.processPcm16Frame(
+              Uint8List.fromList(frame),
+              isAiSpeaking: true,
+            );
+            if (shouldInterrupt) {
+              print('🛑 BARGE-IN DETECTED!');
+              await _ttsPlayer?.stop();
+
+              if (isConnected.value && _channel != null) {
+                print('📤 Sending cancel to backend...');
+                _channel?.sink.add(jsonEncode({'type': 'cancel'}));
+              }
+
+              _bargeInDetector!.reset();
+              isSpeaking.value = false;
+              await Future.delayed(Duration(milliseconds: 50));
+            }
+          }
+
           currentAmplitude.value = 0.7;
           siriController.amplitude = 0.7;
         },
         onError: (error) {
-          print('');
-          print('❌❌❌ MICROPHONE STREAM ERROR ❌❌❌');
-          print('Error: $error');
-          print('═══════════════════════════════════════════════════════════');
+          print('❌ Mic stream error: $error');
+          _showError('Microphone error: $error');
         },
         onDone: () {
-          print('');
-          print('🎤 Microphone stream completed/closed');
-          print('═══════════════════════════════════════════════════════════');
+          print('🎤 Mic stream closed');
         },
       );
 
       isMicOn.value = true;
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║          ✅ MICROPHONE STARTED SUCCESSFULLY ✅            ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
-      print('🎤 Status: ACTIVE');
-      print('📡 Audio: STREAMING TO SERVER');
-      print('═══════════════════════════════════════════════════════════');
+      _startAnimationTimer();
+      print('✅ MICROPHONE STARTED - STREAMING TO SERVER');
+
     } catch (e, stackTrace) {
-      print('');
-      print('❌❌❌ FAILED TO START MICROPHONE ❌❌❌');
-      print('Error: $e');
-      print('Stack trace:');
+      print('❌ Failed to start microphone: $e');
       print(stackTrace);
-      print('═══════════════════════════════════════════════════════════');
-      _showError('Failed to start microphone');
+      _showError('Failed to start microphone: ${e.toString()}');
+
+      // ✅ Cleanup on failure
+      await _micSub?.cancel();
+      if (_micStreamer != null) {
+        await _micStreamer!.stop();
+        await _micStreamer!.dispose();
+        _micStreamer = null;
+      }
+      isMicOn.value = false;
     }
   }
 
+
   Future<void> _stopMicrophone() async {
-    print('');
     print('╔═══════════════════════════════════════════════════════════╗');
     print('║              STOPPING MICROPHONE                          ║');
     print('╚═══════════════════════════════════════════════════════════╝');
 
     try {
-      print('🛑 Cancelling mic subscription...');
+      // Cancel frame listener
       await _micSub?.cancel();
       _micSub = null;
-      print('✅ Subscription cancelled');
 
-      print('🛑 Stopping MicStreamer...');
-      await _micStreamer?.stop();
-      print('✅ MicStreamer stopped');
+      // Stop and dispose mic streamer
+      if (_micStreamer != null) {
+        await _micStreamer!.stop();
+        await _micStreamer!.dispose();
+        _micStreamer = null;
+      }
 
-      print('🧹 Disposing MicStreamer...');
-      await _micStreamer?.dispose();
-      _micStreamer = null;
-      print('✅ MicStreamer disposed');
+      // ✅ Note: audio_end is sent by VAD when speech ends
+      // No need to send duplicate audio_end here
 
+      // Stop TTS if playing
+      await _ttsPlayer?.stop();
+      _ttsPlayer?.clear();
+
+      // Reset states
+      isSessionReady.value = false;
       isMicOn.value = false;
+      _lastVadSpeechEnded = false; // ✅ Reset for next session
+      _stopAnimationTimer();
       currentAmplitude.value = 0.5;
       siriController.amplitude = 0.5;
 
-      print('');
-      print('╔═══════════════════════════════════════════════════════════╗');
-      print('║          ✅ MICROPHONE STOPPED SUCCESSFULLY ✅            ║');
-      print('╚═══════════════════════════════════════════════════════════╝');
-      print('🎤 Status: INACTIVE');
-      print('═══════════════════════════════════════════════════════════');
-    } catch (e, stackTrace) {
-      print('');
-      print('❌ ERROR STOPPING MICROPHONE');
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
-      print('═══════════════════════════════════════════════════════════');
+      print('✅ MICROPHONE STOPPED');
+
+    } catch (e) {
+      print('❌ Error stopping microphone: $e');
     }
   }
 
   void _startContinuousAnimation() {
+    siriController.amplitude = 0.3;
+    siriController.speed = 0.1;
+  }
+
+  void _startAnimationTimer() {
     _animationTimer?.cancel();
-    // ✅ Reduced from 50ms to 100ms (10fps) to prevent BLASTBufferQueue overflow
-    _animationTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
-      update();
+    _animationTimer = Timer.periodic(Duration(milliseconds: 100), (_) {
+      if (isMicOn.value) {
+        final variation = (DateTime.now().millisecondsSinceEpoch % 1000) / 1000;
+        siriController.amplitude = 0.5 + (variation * 0.3);
+      }
     });
+  }
+
+  void _stopAnimationTimer() {
+    _animationTimer?.cancel();
+    _animationTimer = null;
+    siriController.amplitude = 0.3;
   }
 
   void _showError(String message) {
@@ -765,114 +581,100 @@ class VoiceChatController extends GetxController {
       'Error',
       message,
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.withValues(alpha: 0.9),
+      backgroundColor: Colors.red.withOpacity(0.8),
       colorText: Colors.white,
       duration: Duration(seconds: 3),
-      margin: EdgeInsets.all(16),
     );
   }
 
   void goBack(BuildContext context) async {
-    print('');
-    print('╔═══════════════════════════════════════════════════════════╗');
-    print('║              BACK BUTTON PRESSED                          ║');
-    print('╚═══════════════════════════════════════════════════════════╝');
-
-    // ✅ Stop mic FIRST if it's active
-    if (isMicOn.value) {
-      print('🎤 Mic is ON - stopping before navigation...');
-      await _stopMicrophone();
-      print('✅ Mic stopped');
-    }
-
-    // ✅ Then cleanup and disconnect
-    print('🧹 Cleaning up resources before navigation...');
     await _cleanup();
-    print('✅ Cleanup complete');
-
-    // ✅ Finally navigate away
-    print('⬅️  Navigating back...');
-    context.pop();
-    print('✅ Navigation complete');
+    if (context.mounted) {
+      context.pop();
+    }
   }
 
   Future<void> _cleanup() async {
-    print('');
-    print('╔═══════════════════════════════════════════════════════════╗');
-    print('║    🧹 CLEANUP: PAGE CLOSING - DISCONNECTING ALL 🧹       ║');
-    print('╚═══════════════════════════════════════════════════════════╝');
-
-    print('🧹 Step 1/7: Stopping microphone (if active)...');
-    if (isMicOn.value) {
-      await _stopMicrophone();
-    }
-    await _micSub?.cancel();
-    print('   ✅ Microphone stopped and cleaned');
-
-    print('🧹 Step 2/7: Cancelling WebSocket subscription...');
-    await _wsSub?.cancel();
-    print('   ✅ WebSocket listener stopped');
-
-    print('🧹 Step 3/7: Stopping MicStreamer...');
-    await _micStreamer?.stop();
-    print('   ✅ MicStreamer stopped');
-
-    print('🧹 Step 4/7: Disposing MicStreamer...');
-    await _micStreamer?.dispose();
-    print('   ✅ MicStreamer disposed');
-
-    print('🧹 Step 5/7: Stopping TTS Player...');
-    await _ttsPlayer?.stop();
-    print('   ✅ TTS Player stopped');
-
-    print('🧹 Step 6/7: Disposing TTS Player...');
-    await _ttsPlayer?.dispose();
-    print('   ✅ TTS Player disposed');
-
-    print('🧹 Step 7/7: Closing WebSocket connection...');
-    await _channel?.sink.close();
-    print('   ✅ WebSocket disconnected');
+    print('🧹 Cleaning up...');
 
     _animationTimer?.cancel();
+    await _micSub?.cancel();
 
-    print('🔄 Resetting all state variables...');
-    isMicOn.value = false;
+    if (_micStreamer != null) {
+      await _micStreamer!.stop();
+      await _micStreamer!.dispose();
+      _micStreamer = null;
+    }
+
+    await _ttsPlayer?.dispose();
+    _ttsPlayer = null;
+
+    await _wsSub?.cancel();
+    await _channel?.sink.close();
+    _channel = null;
+
     isConnected.value = false;
-    isSpeaking.value = false;
+    isMicOn.value = false;
     isSessionReady.value = false;
-    print('   ✅ All states reset to initial values');
+    _isInitializing = false;
 
-    print('');
-    print('╔═══════════════════════════════════════════════════════════╗');
-    print('║   ✅ CLEANUP COMPLETE - PAGE CLOSED SUCCESSFULLY ✅       ║');
-    print('╚═══════════════════════════════════════════════════════════╝');
+    print('✅ Cleanup complete');
   }
+
+  void updateVadStats(int sent, int skipped) {
+    framesSent.value = sent;
+    framesSkipped.value = skipped;
+    bandwidthSaved.value = '${(skipped * 640 / 1024).toStringAsFixed(1)} KB';
+  }
+
+  void toggleVad() {
+    useVad.value = !useVad.value;
+    if (useVad.value) {
+      _micStreamer?.enableVad();
+    } else {
+      _micStreamer?.disableVad();
+    }
+    print('🔧 VAD: ${useVad.value ? "ENABLED" : "DISABLED"}');
+  }
+
+  void resetVadStats() {
+    framesSent.value = 0;
+    framesSkipped.value = 0;
+    bandwidthSaved.value = '0 KB';
+    _micStreamer?.resetStats();
+  }
+
   Future<void> _loadUserProfileImage() async {
     try {
-      print('👤 Loading user profile image...');
+      print('📸 Loading user profile image...');
       final accessToken = SharedPreferencesUtil.getAccessToken();
+
       if (accessToken == null || accessToken.isEmpty) {
         print('⚠️ No access token available');
         return;
       }
 
-      final response = await ApiServices().getUserProfile(accessToken: accessToken);
+      final apiService = ApiServices();
+      final profile = await apiService.getUserProfile(accessToken: accessToken);
 
-      if (response.image != null && response.image!.isNotEmpty) {
-        // Construct full image URL if relative path
-        final imageUrl = response.image!.startsWith('http')
-            ? response.image!
-            : '${ApiConstant.baseUrl}${response.image}';
-
-        userProfileImage.value = imageUrl;
-        print('✅ User profile image loaded: $imageUrl');
+      if (profile.image != null && profile.image!.isNotEmpty) {
+        // Construct full URL: base_url + image_path
+        final fullImageUrl = '${ApiConstant.baseUrl}${profile.image}';
+        userProfileImage.value = fullImageUrl;
+        print('✅ Profile image loaded: $fullImageUrl');
       } else {
-        print('⚠️ No profile image available');
+        print('⚠️ No profile image in response');
       }
     } catch (e) {
-      print('❌ Failed to load user profile image: $e');
-      // Don't throw - use fallback icon
+      print('❌ Failed to load profile image: $e');
     }
+  }
+
+
+  Future<void> refreshVoiceChat() async {
+    await _cleanup();
+    await Future.delayed(Duration(milliseconds: 200));
+    await _initializeVoiceChat();
   }
 }
 
@@ -887,5 +689,3 @@ class ChatMessage {
     required this.timestamp,
   });
 }
-// ✅ ADD: Method to load user profile image
-

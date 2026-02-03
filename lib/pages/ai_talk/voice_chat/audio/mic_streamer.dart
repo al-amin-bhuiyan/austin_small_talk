@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:austin_small_talk/pages/ai_talk/voice_chat/audio/voice_activity_detector.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -12,10 +13,34 @@ class MicStreamer {
   final StreamController<Uint8List> _frames = StreamController.broadcast();
   bool _isInitialized = false;
 
+  final VoiceActivityDetector _vad = VoiceActivityDetector();
+  int _framesSent = 0;
+  int _framesSkipped = 0;
+  bool _useVad = true; // VAD enabled by default
+  
   // Constructor accepts channel for compatibility but audio is sent in controller
   MicStreamer({required WebSocketChannel channel});
 
   Stream<Uint8List> get frames => _frames.stream;
+  
+  // ✅ Expose VAD for echo cancellation control
+  VoiceActivityDetector get vad => _vad;
+  
+  // VAD control
+  void enableVad() => _useVad = true;
+  void disableVad() => _useVad = false;
+  bool get isVadEnabled => _useVad;
+  
+  // VAD statistics
+  int get framesSent => _framesSent;
+  int get framesSkipped => _framesSkipped;
+  String get bandwidthSaved => '${(_framesSkipped * 640 / 1024).toStringAsFixed(1)} KB';
+  
+  // Reset VAD statistics
+  void resetStats() {
+    _framesSent = 0;
+    _framesSkipped = 0;
+  }
 
   Future<void> init() async {
     print('🎙️  Initializing microphone recorder...');
@@ -88,6 +113,7 @@ class MicStreamer {
         codec: Codec.pcm16,
         numChannels: 1, // Mono channel
         sampleRate: 16000, // 16kHz sample rate to match backend
+        audioSource: AudioSource.voice_communication,
       );
 
       print('✅ Microphone started');
@@ -107,6 +133,9 @@ class MicStreamer {
       if (_recorder.isRecording) {
         await _recorder.stopRecorder();
         print('✅ Microphone stopped');
+        
+        // Reset VAD state when stopping
+        _vad.reset();
       } else {
         print('⚠️  Recorder not recording - nothing to stop');
       }
@@ -126,6 +155,10 @@ class MicStreamer {
         // Wait for resources to be released
         await Future.delayed(Duration(milliseconds: 100));
       }
+
+      // ✅ Reset VAD completely
+      _vad.resetCompletely();
+      resetStats();
 
       // ✅ Only close if initialized to prevent "Recorder already close" error
       if (_isInitialized) {
@@ -155,5 +188,30 @@ class MicStreamer {
       print('❌ Error disposing recorder: $e');
       // Don't rethrow - we're cleaning up anyway
     }
+  }
+  
+  /// Process frame with VAD and return result
+  /// This method is called by the controller to decide whether to send the frame
+  VadResult processFrameWithVad(Uint8List frame) {
+    if (!_useVad) {
+      // VAD disabled - always send
+      _framesSent++;
+      return VadResult(shouldSend: true);
+    }
+
+    final vadResult = _vad.processFrame(frame);
+
+    if (vadResult.shouldSend) {
+      _framesSent++;
+    } else {
+      _framesSkipped++;
+    }
+
+    // Log statistics every 50 frames
+    if ((_framesSent + _framesSkipped) % 50 == 0) {
+      print('📊 VAD Stats: Sent=$_framesSent, Skipped=$_framesSkipped, Saved=$bandwidthSaved');
+    }
+
+    return vadResult;
   }
 }
