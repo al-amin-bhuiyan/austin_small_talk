@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
-import '../../../utils/nav_bar/nav_bar.dart';
 import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import 'notification_controller.dart';
@@ -14,51 +13,65 @@ class NotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(NotificationController());
     final navBarController = Get.find<NavBarController>();
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF0A2342),
-              const Color(0xFF1A1A3E),
-              const Color(0xFF2D1B4E),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // App Bar
-              _buildAppBar(context),
-              
-              // Notifications List
-              Expanded(
-                child: Obx(() => controller.notifications.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-                        itemCount: controller.notifications.length,
-                        itemBuilder: (context, index) {
-                          final notification = controller.notifications[index];
-                          return _buildNotificationItem(
-                            notification: notification,
-                            onTap: () => controller.markAsRead(index),
-                          );
-                        },
-                      )),
+    return GetBuilder<NotificationController>(
+      init: NotificationController(),
+      autoRemove: true,
+      builder: (controller) {
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              // Ensure we stay on home tab (index 0) after back navigation
+              navBarController.returnToTab(0);
+            }
+          },
+          child: Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF0A2342),
+                    const Color(0xFF1A1A3E),
+                    const Color(0xFF2D1B4E),
+                  ],
+                ),
               ),
-              
-              // Navigation Bar
-            //  CustomNavBar(controller: navBarController),
-            ],
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    // App Bar
+                    _buildAppBar(context),
+                    
+                    // Notifications List
+                    Expanded(
+                      child: Obx(() => controller.notifications.isEmpty
+                          ? _buildEmptyState()
+                          : ListView.builder(
+                              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                              itemCount: controller.notifications.length,
+                              itemBuilder: (context, index) {
+                                final notification = controller.notifications[index];
+                                return _buildNotificationItem(
+                                  notification: notification,
+                                  onTap: () => controller.markAsRead(index),
+                                );
+                              },
+                            )),
+                    ),
+                    
+                    // Navigation Bar
+                  //  CustomNavBar(controller: navBarController),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -68,7 +81,12 @@ class NotificationScreen extends StatelessWidget {
       child: Row(
         children: [
           CustomBackButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              // Ensure home tab (index 0) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(0);
+              Navigator.pop(context);
+            },
           ),
           Expanded(
             child: Center(

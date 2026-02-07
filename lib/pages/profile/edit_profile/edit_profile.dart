@@ -7,6 +7,7 @@ import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
 import '../../../utils/toast_message/toast_message.dart';
+import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import '../../../view/custom_button/custom_button.dart';
 import 'edit_profile_controller.dart';
@@ -17,86 +18,97 @@ class EditProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(EditProfileController());
-
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // App Bar
-              _buildAppBar(context),
-              
-              // Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w),
-                  child: Column(
-                    children: [
-                      SizedBox(height: 24.h),
-                      
-                      // Profile Image Section
-                      _buildProfileImageSection(controller),
-                      
-                      SizedBox(height: 8.h),
-                      
-                      // Name
-                      Obx(
-                        () => Text(
-                          controller.userName.value,
-                          style: AppFonts.poppinsSemiBold(
-                            fontSize: 18,
-                            color: AppColors.whiteColor,
-                          ),
-                        ),
-                      ),
-                      
-                      SizedBox(height: 4.h),
-                      
-                      // Email
-                      Obx(
-                        () => Text(
-                          controller.userEmail.value,
-                          style: AppFonts.poppinsRegular(
-                            fontSize: 14,
-                            color: AppColors.whiteColor.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ),
-                      
-                      SizedBox(height: 32.h),
-                      
-                      // Personal Information Section
-                      _buildPersonalInformationSection(context, controller),
-                      
-                      SizedBox(height: 32.h),
-                      
-                      // Save Button
-                      Obx(() => CustomButton(
-                        label: 'Save',
-                        onPressed:()=> controller.saveProfile(context),
-                        isLoading: controller.isLoading.value,
-                      )),
-                      
-                      SizedBox(height: 100.h), // Space for nav bar
-                    ],
-                  ),
+    return GetBuilder<EditProfileController>(
+      init: EditProfileController(),
+      autoRemove: true,
+      builder: (controller) {
+        return Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-              
-              // Navigation Bar
-              // CustomNavBar(controller: navBarController),
-              // SizedBox(height: 34.h),
-            ],
-          ),
-        ),
-      ),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    // App Bar
+                    _buildAppBar(context),
+                    
+                    // Content with RefreshIndicator
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: controller.loadUserProfile,
+                        color: AppColors.whiteColor,
+                        backgroundColor: Color(0xFF4B006E),
+                        strokeWidth: 3.0,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.symmetric(horizontal: 24.w),
+                          child: Column(
+                            children: [
+                              SizedBox(height: 24.h),
+                              
+                              // Profile Image Section
+                              _buildProfileImageSection(controller),
+                              
+                              SizedBox(height: 8.h),
+                              
+                              // Name
+                              Obx(
+                                () => Text(
+                                  controller.userName.value,
+                                  style: AppFonts.poppinsSemiBold(
+                                    fontSize: 18,
+                                    color: AppColors.whiteColor,
+                                  ),
+                                ),
+                              ),
+                              
+                              SizedBox(height: 4.h),
+                              
+                              // Email
+                              Obx(
+                                () => Text(
+                                  controller.userEmail.value,
+                                  style: AppFonts.poppinsRegular(
+                                    fontSize: 14,
+                                    color: AppColors.whiteColor.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                              
+                              SizedBox(height: 32.h),
+                              
+                              // Personal Information Section
+                              _buildPersonalInformationSection(context, controller),
+                              
+                              SizedBox(height: 32.h),
+                              
+                              // Save Button
+                              Obx(() => CustomButton(
+                                label: 'Save',
+                                onPressed: () => controller.saveProfile(context),
+                                isLoading: controller.isLoading.value,
+                              )),
+                              
+                              SizedBox(height: 100.h), // Space for nav bar
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Navigation Bar
+                    // CustomNavBar(controller: navBarController),
+                    // SizedBox(height: 34.h),
+                  ],
+                ),
+              ),
+            ),
+        );
+      },
     );
   }
 
@@ -109,6 +121,9 @@ class EditProfileScreen extends StatelessWidget {
           // Back Button
           CustomBackButton(
             onPressed: () {
+              // Ensure profile tab (index 3) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(3);
               // Navigate back to profile page explicitly
               context.go('/profile');
             },
@@ -149,7 +164,7 @@ class EditProfileScreen extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(
                 color: AppColors.whiteColor.withValues(alpha: 0.3),
-                width: 2.w,
+                width: 1.w,
               ),
             ),
             child: ClipOval(
@@ -162,16 +177,51 @@ class EditProfileScreen extends StatelessWidget {
                       ? Image.network(
                           networkImageUrl,
                           fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: AppColors.whiteColor,
+                              ),
+                            );
+                          },
                           errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              CustomAssets.person,
-                              fit: BoxFit.cover,
+                            // If network image fails, show a colored container with initials
+                            return Container(
+                              color: Color(0xFF4B006E),
+                              child: Center(
+                                child: Text(
+                                  controller.userName.value.isNotEmpty
+                                      ? controller.userName.value[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 40.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             );
                           },
                         )
-                      : Image.asset(
-                          CustomAssets.person,
-                          fit: BoxFit.cover,
+                      : Container(
+                          // No image URL - show initials
+                          color: Color(0xFF4B006E),
+                          child: Center(
+                            child: Text(
+                              controller.userName.value.isNotEmpty
+                                  ? controller.userName.value[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 40.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
             ),
           ),

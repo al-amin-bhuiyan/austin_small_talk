@@ -21,54 +21,28 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> with AutomaticKeepAliveClientMixin {
   NavBarController? _controller;
-  
+  bool _isInitialized = false;
+
   // Keep this widget alive to prevent rebuilds
   @override
   bool get wantKeepAlive => true;
-  
+
   @override
   void initState() {
     super.initState();
-    // Initialize controllers once
-    _controller = Get.put(NavBarController(), permanent: true);
-    
-    // Pre-initialize AI Talk and Profile controllers for instant animation start
-    Get.lazyPut(() => AiTalkController(), fenix: true);
-    Get.lazyPut(() => ProfileController(), fenix: true);
-  }
-  
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    
-    // Set the correct tab based on current route (only on first load or route change)
-    if (_controller != null) {
-      final location = GoRouterState.of(context).uri.path;
-      
-      int tabIndex = 0;
-      switch (location) {
-        case AppPath.home:
-          tabIndex = 0;
-          break;
-        case AppPath.history:
-          tabIndex = 1;
-          break;
-        case AppPath.aitalk:
-          tabIndex = 2;
-          break;
-        case AppPath.profile:
-          tabIndex = 3;
-          break;
-      }
-      
-      // Only update if different to avoid unnecessary rebuilds
-      if (_controller!.selectedIndex.value != tabIndex) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _controller!.selectedIndex.value = tabIndex;
-          }
-        });
-      }
+    // Get controller from dependency injection
+    if (!Get.isRegistered<NavBarController>()) {
+      _controller = Get.put(NavBarController(), permanent: true);
+    } else {
+      _controller = Get.find<NavBarController>();
+    }
+
+    // Pre-initialize AI Talk and Profile controllers
+    if (!Get.isRegistered<AiTalkController>()) {
+      Get.lazyPut(() => AiTalkController(), fenix: true);
+    }
+    if (!Get.isRegistered<ProfileController>()) {
+      Get.lazyPut(() => ProfileController(), fenix: true);
     }
   }
 
@@ -79,18 +53,21 @@ class _MainNavigationState extends State<MainNavigation> with AutomaticKeepAlive
     return Scaffold(
       extendBody: true,
       body: Obx(
-        () => IndexedStack(
-          index: _controller?.selectedIndex.value ?? 0,
-          children: const [
-            HomeScreen(),
-            HistoryScreen(),
-            AiTalkScreen(),
-            ProfileScreen(),
-          ],
-        ),
+            () {
+          final index = _controller?.selectedIndex.value ?? 0;
+          return IndexedStack(
+            index: index,
+            children: const [
+              HomeScreen(),
+              HistoryScreen(),
+              AiTalkScreen(),
+              ProfileScreen(),
+            ],
+          );
+        },
       ),
-      bottomNavigationBar: _controller != null 
-          ? CustomNavBar(controller: _controller!) 
+      bottomNavigationBar: _controller != null
+          ? CustomNavBar(controller: _controller!)
           : const SizedBox.shrink(),
     );
   }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../../../core/global/profile_controller.dart';
 import '../../../data/global/shared_preference.dart';
 import '../../../service/auth/api_service/api_services.dart';
 import '../../../service/auth/api_constant/api_constant.dart';
@@ -257,7 +258,19 @@ class EditProfileController extends GetxController {
       userEmail.value = updatedProfile.email;
       profileImageUrl.value = updatedProfile.getFullImageUrl(ApiConstant.baseUrl) ?? '';
       
-      print('🔄 Updating other controllers...');
+      print('🔄 Updating controllers...');
+      
+      // ✅ UPDATE GLOBAL PROFILE CONTROLLER - This syncs ALL screens instantly!
+      try {
+        GlobalProfileController.instance.updateAllProfileData(
+          imageUrl: profileImageUrl.value,
+          name: updatedProfile.name,
+          email: updatedProfile.email,
+        );
+        print('✅ GlobalProfileController updated - ALL screens will update instantly!');
+      } catch (e) {
+        print('⚠️ GlobalProfileController not found (should never happen): $e');
+      }
       
       // Update ProfileController if it exists
       try {
@@ -351,6 +364,12 @@ class EditProfileController extends GetxController {
     }
   }
   
+  /// Public method for pull-to-refresh
+  Future<void> loadUserProfile() async {
+    print('🔄 Refreshing edit profile data...');
+    await _loadUserData();
+  }
+  
   @override
   void onClose() {
     fullNameController.dispose();
@@ -359,3 +378,4 @@ class EditProfileController extends GetxController {
     super.onClose();
   }
 }
+

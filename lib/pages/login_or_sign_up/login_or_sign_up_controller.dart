@@ -1,4 +1,5 @@
 import 'package:austin_small_talk/core/app_route/app_path.dart';
+import 'package:austin_small_talk/core/global/profile_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
@@ -21,10 +22,10 @@ class LoginController extends GetxController {
 
   // Form key for validation
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  
+
   // API service
   final ApiServices _apiServices = ApiServices();
-  
+
   // Auth service for Google Sign-In
   final AuthService _authService = AuthService();
 
@@ -33,13 +34,13 @@ class LoginController extends GetxController {
     super.onInit();
     _loadSavedCredentials();
   }
-  
+
   /// Load saved credentials if Remember Me was enabled
   void _loadSavedCredentials() {
     if (SharedPreferencesUtil.isRememberMeEnabled()) {
       final savedEmail = SharedPreferencesUtil.getSavedEmail();
       final savedPassword = SharedPreferencesUtil.getSavedPassword();
-      
+
       if (savedEmail != null && savedPassword != null) {
         emailController.text = savedEmail;
         passwordController.text = savedPassword;
@@ -109,7 +110,20 @@ class LoginController extends GetxController {
           userId: response.userId,
           userName: response.userName,
           email: response.email ?? emailController.text.trim(),
+          userImage: response.userImage,
         );
+
+        // ✅ Update GlobalProfileController with user data
+        try {
+          GlobalProfileController.instance.updateAllProfileData(
+            imageUrl: response.userImage ?? '',
+            name: response.userName,
+            email: response.email ?? emailController.text.trim(),
+          );
+          print('✅ GlobalProfileController updated after login');
+        } catch (e) {
+          print('⚠️ Failed to update GlobalProfileController: $e');
+        }
 
         // Save credentials if Remember Me is checked
         if (rememberMe.value) {
@@ -136,9 +150,9 @@ class LoginController extends GetxController {
         }
       } catch (e) {
         String errorMessage = e.toString().replaceAll('Exception: ', '');
-        
+
         if (!context.mounted) return;
-        
+
         CustomSnackbar.error(
           context: context,
           title: 'Login Failed',
@@ -166,10 +180,10 @@ class LoginController extends GetxController {
   Future<void> onGoogleSignInPressed(BuildContext context) async {
     try {
       isLoading.value = true;
-      
+
       // Call the AuthService to handle Google Sign-In
       await _authService.signUpWithGoogle();
-      
+
     } catch (e) {
       if (context.mounted) {
         CustomSnackbar.error(

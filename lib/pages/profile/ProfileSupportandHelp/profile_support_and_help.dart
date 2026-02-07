@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
-import '../../../utils/nav_bar/nav_bar.dart';
 import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import 'profile_support_and_help_controller.dart';
@@ -14,60 +13,74 @@ class ProfileSupportandHelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ProfileSupportandHelpController());
     final navBarController = Get.find<NavBarController>();
 
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
-                  child: Column(
-                    children: [
-                      _buildMenuItem(
-                        title: 'FAQs',
-                        onTap: ()=>controller.onFAQsTap(context),
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildMenuItem(
-                        title: 'Contact Support',
-                        onTap: () => controller.onContactSupportTap(context),
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildMenuItem(
-                        title: 'Privacy Policy',
-                        onTap: () => controller.onPrivacyPolicyTap(context),
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildMenuItem(
-                        title: 'Terms & Conditions',
-                        onTap: () => controller.onTermsAndConditionsTap(context),
-                      ),
-                    ],
-                  ),
+    return GetBuilder<ProfileSupportandHelpController>(
+      init: ProfileSupportandHelpController(),
+      autoRemove: true,
+      builder: (controller) {
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              // Ensure we stay on profile tab (index 3) after back navigation
+              navBarController.returnToTab(3);
+            }
+          },
+          child: Scaffold(
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
+                        child: Column(
+                          children: [
+                            _buildMenuItem(
+                              title: 'FAQs',
+                              onTap: ()=>controller.onFAQsTap(context),
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildMenuItem(
+                              title: 'Contact Support',
+                              onTap: () => controller.onContactSupportTap(context),
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildMenuItem(
+                              title: 'Privacy Policy',
+                              onTap: () => controller.onPrivacyPolicyTap(context),
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildMenuItem(
+                              title: 'Terms & Conditions',
+                              onTap: () => controller.onTermsAndConditionsTap(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // bottomNavigationBar: SafeArea(
+            //   child: CustomNavBar(controller: navBarController),
+            // ),
           ),
-        ),
-      ),
-      // bottomNavigationBar: SafeArea(
-      //   child: CustomNavBar(controller: navBarController),
-      // ),
+        );
+      },
     );
   }
 
@@ -77,7 +90,12 @@ class ProfileSupportandHelpScreen extends StatelessWidget {
       child: Row(
         children: [
           CustomBackButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Ensure profile tab (index 3) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(3);
+              context.pop();
+            },
           ),
           Expanded(
             child: Text(

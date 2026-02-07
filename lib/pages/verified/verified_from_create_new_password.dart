@@ -12,7 +12,8 @@ class VerifiedScreenFromCreateNewPassword extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<VerifiedControllerFromCreateNewPassword>();
+    // ✅ Use Get.put to ensure controller is always available
+    final controller = Get.put(VerifiedControllerFromCreateNewPassword());
 
     return Scaffold(
       body: Container(

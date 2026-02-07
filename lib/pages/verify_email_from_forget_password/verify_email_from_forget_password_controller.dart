@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
+import 'package:toastification/toastification.dart';
 import '../../service/auth/api_service/api_services.dart';
 import '../../service/auth/models/reset_password_otp_request_model.dart';
 import '../../service/auth/models/resend_otp_request_model.dart';
@@ -21,6 +23,12 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
   final List<FocusNode> focusNodes = List.generate(
     6,
     (index) => FocusNode(),
+  );
+
+  // Observable states for each OTP field to track input
+  final List<RxString> otpValues = List.generate(
+    6,
+    (index) => ''.obs,
   );
 
   // Observable states
@@ -42,6 +50,13 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
     // Email should be set from forgot password controller
     if (email.value.isEmpty) {
       email.value = 'name@company.com'; // Default placeholder
+    }
+    
+    // Listen to controller changes to update observable states
+    for (int i = 0; i < 6; i++) {
+      otpControllers[i].addListener(() {
+        otpValues[i].value = otpControllers[i].text;
+      });
     }
   }
 
@@ -69,16 +84,17 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
     return getOtpCode().length == 6;
   }
 
-  /// Handle digit input
-  void onDigitChanged(int index, String value) {
-    if (value.isNotEmpty) {
-      // Move to next field if not the last one
-      if (index < 5) {
-        focusNodes[index + 1].requestFocus();
-      } else {
-        // Last field - unfocus to hide keyboard
-        focusNodes[index].unfocus();
-      }
+  /// Handle digit input and navigation
+  void onDigitChanged(int index, String value, BuildContext context) {
+    if (value.length == 1 && index < 5) {
+      // Move to next field
+      focusNodes[index + 1].requestFocus();
+    } else if (value.length == 1 && index == 5) {
+      // Last field - unfocus to hide keyboard
+      focusNodes[index].unfocus();
+    } else if (value.isEmpty && index > 0) {
+      // Move to previous field on backspace
+      focusNodes[index - 1].requestFocus();
     }
   }
 
@@ -88,6 +104,79 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
       // Move to previous field
       focusNodes[index - 1].requestFocus();
     }
+  }
+
+  /// Handle paste from clipboard manually
+  Future<void> handlePasteFromClipboard(BuildContext context) async {
+    try {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      if (clipboardData != null && clipboardData.text != null) {
+        final pastedText = clipboardData.text!;
+        _handlePaste(pastedText, context);
+      }
+    } catch (e) {
+      // Clipboard error
+      CustomSnackbar.error(
+        context: context,
+        title: 'Error',
+        message: 'Failed to paste from clipboard',
+      );
+    }
+  }
+
+  /// Handle paste event - distribute digits across all fields
+  void _handlePaste(String pastedText, BuildContext context) {
+    // Remove any non-digit characters
+    final digits = pastedText.replaceAll(RegExp(r'\D'), '');
+    
+    if (digits.isEmpty) return;
+    
+    // Check if more than 6 digits
+    if (digits.length > 6) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.warning,
+        style: ToastificationStyle.flat,
+        title: const Text('Invalid OTP'),
+        description: const Text('OTP should not be more than 6 digits'),
+        alignment: Alignment.bottomCenter,
+        autoCloseDuration: const Duration(seconds: 2),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.white),
+        showProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        dragToClose: true,
+      );
+      return;
+    }
+    
+    // Clear all fields first
+    for (var ctrl in otpControllers) {
+      ctrl.clear();
+    }
+    
+    // Distribute digits starting from the first field
+    final numDigits = digits.length;
+    for (int i = 0; i < numDigits; i++) {
+      otpControllers[i].text = digits[i];
+    }
+    
+    // Focus on the next empty field or unfocus if all filled
+    if (numDigits >= 6) {
+      focusNodes[5].unfocus();
+    } else {
+      focusNodes[numDigits].requestFocus();
+    }
+  }
+
+  /// Clear all OTP fields
+  void clearOtpFields() {
+    for (var controller in otpControllers) {
+      controller.clear();
+    }
+    focusNodes[0].requestFocus();
   }
 
   /// Handle verify button press - FORGOT PASSWORD FLOW
@@ -112,6 +201,9 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
       return;
     }
 
+    // Track if verification API call succeeded
+    bool verificationSucceeded = false;
+    
     try {
       isLoading.value = true;
 
@@ -125,6 +217,10 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
 
       // Call reset password OTP API (different from signup verify OTP)
       final response = await _apiServices.resetPasswordOtp(request);
+
+      // ✅ Mark verification as successful (API returned success)
+      verificationSucceeded = true;
+      print('✅ Reset password OTP verification API call successful');
 
       // Store reset token for later use
       if (response.resetToken != null && response.resetToken!.isNotEmpty) {
@@ -150,50 +246,62 @@ class VerifyEmailFromForgetPasswordController extends GetxController {
         createPasswordController.resetToken.value = resetToken.value;
         createPasswordController.email.value = email.value;
         
-        context.go(AppPath.createNewPassword);
+        print('🔄 Navigating to create new password screen...');
+        context.push(AppPath.createNewPassword);
+        print('✅ Navigation to create new password initiated');
       }
     } catch (e) {
-      String errorMessage = e.toString().replaceAll('Exception: ', '');
-      
-      if (!context.mounted) return;
-      
-      // Check specific error types
-      if (errorMessage.toLowerCase().contains('invalid') && 
-          errorMessage.toLowerCase().contains('otp')) {
-        CustomSnackbar.error(
-          context: context,
-          title: 'Invalid OTP',
-          message: 'The code you entered is incorrect. Please try again.',
-        );
-      } else if (errorMessage.toLowerCase().contains('expired') && 
-                 errorMessage.toLowerCase().contains('otp')) {
-        CustomSnackbar.error(
-          context: context,
-          title: 'OTP Expired',
-          message: 'The verification code has expired. Please request a new one.',
-        );
-      } else if ((errorMessage.toLowerCase().contains('already') && 
-                  errorMessage.toLowerCase().contains('verified')) ||
-                 (errorMessage.toLowerCase().contains('already') && 
-                  errorMessage.toLowerCase().contains('activated'))) {
-        // For forgot password flow, if account is already verified/activated,
-        // allow user to proceed to reset password
-        CustomSnackbar.success(
-          context: context,
-          title: 'Success',
-          message: 'You can now reset your password.',
-        );
+      // ✅ Only show error if verification actually failed
+      // Don't show error if verification succeeded but navigation threw exception
+      if (!verificationSucceeded) {
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
         
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (context.mounted) {
-          context.go(AppPath.createNewPassword);
+        print('❌ Verification failed: $errorMessage');
+        
+        if (!context.mounted) return;
+        
+        // Check specific error types
+        if (errorMessage.toLowerCase().contains('invalid') && 
+            errorMessage.toLowerCase().contains('otp')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Invalid OTP',
+            message: 'The code you entered is incorrect. Please try again.',
+          );
+        } else if (errorMessage.toLowerCase().contains('expired') && 
+                   errorMessage.toLowerCase().contains('otp')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'OTP Expired',
+            message: 'The verification code has expired. Please request a new one.',
+          );
+        } else if ((errorMessage.toLowerCase().contains('already') && 
+                    errorMessage.toLowerCase().contains('verified')) ||
+                   (errorMessage.toLowerCase().contains('already') && 
+                    errorMessage.toLowerCase().contains('activated'))) {
+          // For forgot password flow, if account is already verified/activated,
+          // allow user to proceed to reset password
+          CustomSnackbar.success(
+            context: context,
+            title: 'Success',
+            message: 'You can now reset your password.',
+          );
+          
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (context.mounted) {
+            context.push(AppPath.createNewPassword);
+          }
+        } else {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Verification Failed',
+            message: errorMessage,
+          );
         }
       } else {
-        CustomSnackbar.error(
-          context: context,
-          title: 'Verification Failed',
-          message: errorMessage,
-        );
+        // Verification succeeded but something else failed (like navigation)
+        // Don't show error - user is already verified and will see success message
+        print('⚠️ Post-verification error (ignored): ${e.toString()}');
       }
     } finally {
       isLoading.value = false;

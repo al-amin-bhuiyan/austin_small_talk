@@ -10,16 +10,16 @@ class AiTalkController extends GetxController {
   var inputText = ''.obs;
   var hasText = false.obs; // Track if text field has text
   var showNavBar = true.obs; // Track nav bar visibility
-  
+
   // TextEditingController for the input field
   final TextEditingController textController = TextEditingController();
   final FocusNode textFocusNode = FocusNode();
-  
+
   // WaveBlob animation properties - keep these relatively stable
   double waveScale = 1.0;
   double waveAmplitude = 4250.0;
   bool autoScale = true;
-  
+
   Timer? _animationTimer;
 
   @override
@@ -71,20 +71,20 @@ class AiTalkController extends GetxController {
   void sendMessage(String message, {BuildContext? context}) {
     if (message.trim().isEmpty) return;
     inputText.value = message;
-    
+
     // Clear the text field after sending
     textController.clear();
-    
+
     // Remove focus and show nav bar
     textFocusNode.unfocus();
     showNavBar.value = true;
-    
+
     // Navigate to message screen to start conversation
     if (context != null) {
       context.push(AppPath.messageScreen);
     }
   }
-  
+
   /// Send message from text field
   void onSendPressed(BuildContext context) {
     final message = textController.text.trim();
@@ -92,12 +92,12 @@ class AiTalkController extends GetxController {
       sendMessage(message, context: context);
     }
   }
-  
+
   /// Navigate to voice chat screen
   void goToVoiceChat(BuildContext context) {
     context.push(AppPath.voiceChat);
   }
-  
+
   /// Navigate to message screen
   void goToMessageScreen(BuildContext context) {
     context.push(AppPath.messageScreen);
@@ -113,7 +113,7 @@ class AiTalkController extends GetxController {
     // Trigger first update immediately
     update(['waveBlob']);
     print('✅ First animation frame rendered');
-    
+
     // Then continue with periodic updates at 150ms intervals for smoother animation
     _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
       update(['waveBlob']);
@@ -128,6 +128,55 @@ class AiTalkController extends GetxController {
     textController.dispose();
     textFocusNode.dispose();
     _animationTimer?.cancel();
+    super.onClose();
+  }
+
+  /// Refresh AI Talk screen - restart animation
+  Future<void> refreshData() async {
+    print('🔄 Refreshing AI Talk screen...');
+    
+    // Restart animation
+    _animationTimer?.cancel();
+    await Future.delayed(const Duration(milliseconds: 100));
+    _startAnimationTimer();
+    
+    print('✅ AI Talk refresh complete');
+  }
+}
+
+class AiTalkBlobController extends GetxController {
+  final RxBool isAnimating = false.obs;
+  final RxDouble blobScale = 1.0.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _startBlobAnimation();
+  }
+
+  void _startBlobAnimation() {
+    isAnimating.value = true;
+    _animateBlob();
+  }
+
+  Future<void> _animateBlob() async {
+    while (isAnimating.value) {
+      blobScale.value = 1.1;
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      blobScale.value = 1.0;
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
+  }
+
+  void stopAnimation() {
+    isAnimating.value = false;
+    blobScale.value = 1.0;
+  }
+
+  @override
+  void onClose() {
+    stopAnimation();
     super.onClose();
   }
 }

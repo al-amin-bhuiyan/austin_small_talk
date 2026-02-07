@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:wave_blob/wave_blob.dart';
 import 'package:siri_wave/siri_wave.dart';
 import '../../../core/custom_assets/custom_assets.dart';
+import '../../../core/global/profile_controller.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
@@ -249,7 +250,8 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with WidgetsBindingOb
                 if (message.isUser) ...[
                   SizedBox(width: 6.w),
                   Obx(() {
-                    final userImage = controller.userProfileImage.value ?? '';
+                    // ✅ Use GlobalProfileController for instant updates across all screens
+                    final userImage = GlobalProfileController.instance.profileImageUrl.value;
                     return Container(
                       width: 32.w,
                       height: 32.h,

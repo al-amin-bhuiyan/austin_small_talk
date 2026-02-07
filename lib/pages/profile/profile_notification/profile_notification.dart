@@ -15,70 +15,84 @@ class ProfileNotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ProfileNotificationController());
     final navBarController = Get.find<NavBarController>();
 
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
-                  child: Column(
-                    children: [
-                      _buildNotificationItem(
-                        title: 'Receive notifications when new\nscenario arrived',
-                        value: controller.receiveNewScenario,
-                        onChanged: controller.toggleReceiveNewScenario,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildNotificationItem(
-                        title: 'Notify me about practice reminder',
-                        value: controller.practiceReminder,
-                        onChanged: controller.togglePracticeReminder,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildNotificationItem(
-                        title: 'Security alerts',
-                        value: controller.securityAlerts,
-                        onChanged: controller.toggleSecurityAlerts,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildNotificationItem(
-                        title: 'Push notifications',
-                        value: controller.pushNotifications,
-                        onChanged: controller.togglePushNotifications,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildNotificationItem(
-                        title: 'Email notifications',
-                        value: controller.emailNotifications,
-                        onChanged: controller.toggleEmailNotifications,
-                      ),
-                    ],
-                  ),
+    return GetBuilder<ProfileNotificationController>(
+      init: ProfileNotificationController(),
+      autoRemove: true,
+      builder: (controller) {
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              // Ensure we stay on profile tab (index 3) after back navigation
+              navBarController.returnToTab(3);
+            }
+          },
+          child: Scaffold(
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
+                        child: Column(
+                          children: [
+                            _buildNotificationItem(
+                              title: 'Receive notifications when new\nscenario arrived',
+                              value: controller.receiveNewScenario,
+                              onChanged: controller.toggleReceiveNewScenario,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildNotificationItem(
+                              title: 'Notify me about practice reminder',
+                              value: controller.practiceReminder,
+                              onChanged: controller.togglePracticeReminder,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildNotificationItem(
+                              title: 'Security alerts',
+                              value: controller.securityAlerts,
+                              onChanged: controller.toggleSecurityAlerts,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildNotificationItem(
+                              title: 'Push notifications',
+                              value: controller.pushNotifications,
+                              onChanged: controller.togglePushNotifications,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildNotificationItem(
+                              title: 'Email notifications',
+                              value: controller.emailNotifications,
+                              onChanged: controller.toggleEmailNotifications,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // bottomNavigationBar: SafeArea(
+            //   child: CustomNavBar(controller: navBarController),
+            // ),
           ),
-        ),
-      ),
-      // bottomNavigationBar: SafeArea(
-      //   child: CustomNavBar(controller: navBarController),
-      // ),
+        );
+      },
     );
   }
 
@@ -88,7 +102,12 @@ class ProfileNotificationScreen extends StatelessWidget {
       child: Row(
         children: [
           CustomBackButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Ensure profile tab (index 3) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(3);
+              context.pop();
+            },
           ),
           Expanded(
             child: Text(

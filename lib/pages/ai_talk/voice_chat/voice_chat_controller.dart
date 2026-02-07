@@ -67,7 +67,7 @@ class VoiceChatController extends GetxController {
     print('═══════════════════════════════════════════════════════════');
     super.onInit();
     _startContinuousAnimation();
-    _loadUserProfileImage();
+    // ✅ Profile image is handled by GlobalProfileController - no need to fetch here
   }
 
   @override

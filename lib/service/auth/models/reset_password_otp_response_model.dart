@@ -8,10 +8,20 @@ class ResetPasswordOtpResponseModel {
     this.resetToken,
   });
 
+  /// Helper to safely get a String value
+  static String? _getString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
   factory ResetPasswordOtpResponseModel.fromJson(Map<String, dynamic> json) {
+    print('📦 ResetPasswordOtpResponseModel.fromJson:');
+    print('   Raw JSON keys: ${json.keys.toList()}');
+    
     return ResetPasswordOtpResponseModel(
-      message: json['message'] ?? json['msg'] ?? 'OTP verified successfully',
-      resetToken: json['reset_token'] ?? json['resetToken'],
+      message: _getString(json['message'] ?? json['msg']) ?? 'OTP verified successfully',
+      resetToken: _getString(json['reset_token']) ?? _getString(json['resetToken']),
     );
   }
 

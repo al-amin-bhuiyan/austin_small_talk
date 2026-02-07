@@ -11,6 +11,7 @@ class NavBarController extends GetxController {
   void changeIndex(int index) {
     selectedIndex.value = index;
     print('🔄 Switched to tab $index');
+    update();
   }
 
   /// Method to get the current route path based on index
@@ -37,5 +38,9 @@ class NavBarController extends GetxController {
     if (index >= 0 && index <= 3) {
       selectedIndex.value = index;
     }
+  }
+  void returnToTab(int tabIndex) {
+    selectedIndex.value = tabIndex;
+    update();
   }
 }

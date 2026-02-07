@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_colors/app_colors.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
-import '../../../utils/nav_bar/nav_bar.dart';
 import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import 'subscription_controller.dart';
@@ -16,45 +15,59 @@ class SubscriptionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SubscriptionController());
     final navBarController = Get.find<NavBarController>();
 
-    return Scaffold(
-      extendBody: true,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
-                  child: Column(
-                    children: [
-                      _buildPremiumCard(controller),
-                      SizedBox(height: 16.h),
-                      _buildFreeCard(controller),
-                    ],
-                  ),
+    return GetBuilder<SubscriptionController>(
+      init: SubscriptionController(),
+      autoRemove: true,
+      builder: (controller) {
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              // Ensure we stay on profile tab (index 3) after back navigation
+              navBarController.returnToTab(3);
+            }
+          },
+          child: Scaffold(
+            extendBody: true,
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
+                        child: Column(
+                          children: [
+                            _buildPremiumCard(controller),
+                            SizedBox(height: 16.h),
+                            _buildFreeCard(controller),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // bottomNavigationBar: SafeArea(
+            //   child: CustomNavBar(controller: navBarController),
+            // ),
           ),
-        ),
-      ),
-      // bottomNavigationBar: SafeArea(
-      //   child: CustomNavBar(controller: navBarController),
-      // ),
+        );
+      },
     );
   }
 
@@ -64,7 +77,12 @@ class SubscriptionScreen extends StatelessWidget {
       child: Row(
         children: [
           CustomBackButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Ensure profile tab (index 3) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(3);
+              context.pop();
+            },
           ),
           Expanded(
             child: Text(

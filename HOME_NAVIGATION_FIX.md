@@ -94,20 +94,16 @@ void goBack(BuildContext context) {
 **After:**
 ```dart
 void goBack(BuildContext context) {
-  String targetRoute;
   int targetTabIndex;
   
   switch (scenarioData!.sourceScreen) {
     case 'home':
-      targetRoute = AppPath.home;
       targetTabIndex = 0; // ✅ Home tab
       break;
     case 'history':
-      targetRoute = AppPath.history;
       targetTabIndex = 1; // ✅ History tab
       break;
     case 'create_scenario':
-      targetRoute = AppPath.history;
       targetTabIndex = 1; // ✅ History tab (created scenarios show in history)
       break;
   }
@@ -116,8 +112,8 @@ void goBack(BuildContext context) {
   final navBarController = Get.find<NavBarController>();
   navBarController.returnToTab(targetTabIndex);
   
-  // Then navigate
-  context.go(targetRoute);
+  // ✅ Simply pop back (preserves navigation stack)
+  context.pop();
 }
 ```
 
@@ -172,10 +168,10 @@ CustomBackButton(
 ### Scenario Tap Flow ✅
 1. User taps scenario from Home (tab 0)
 2. ScenarioDialog sets `sourceScreen: 'home'`
-3. Navigates to Message Screen
+3. Navigates to Message Screen (pushed onto navigation stack)
 4. User clicks back button in Message Screen
 5. **`returnToTab(0)` is called** → Sets tab index to 0 (Home)
-6. **`context.go('/home')` is called** → Navigates to home route
+6. **`context.pop()` is called** → Pops back to previous screen in stack
 7. **IndexedStack shows Home page** because tab index = 0 ✅
 
 ### Create Scenario Flow ✅
@@ -184,7 +180,8 @@ CustomBackButton(
 3. Creates scenario, navigates to Message Screen with `sourceScreen: 'create_scenario'`
 4. User clicks back in Message Screen
 5. **`returnToTab(1)` is called** → Sets tab index to 1 (History)
-6. **`context.go('/history')` is called** → Shows created scenario in history ✅
+6. **`context.pop()` is called** → Pops back to previous screen
+7. **IndexedStack shows History page** to display created scenario ✅
 
 ### Create Scenario Back Button ✅
 1. User on Home tab (index 0)
@@ -210,15 +207,15 @@ CustomBackButton(
 
 ## Pattern Summary
 
-### For Navigation with context.go()
+### For Message Screen Back Navigation (from different sources)
 ```dart
-// ✅ Set tab index BEFORE navigating
+// ✅ Set tab index FIRST, then pop back
 final navBarController = Get.find<NavBarController>();
 navBarController.returnToTab(targetTabIndex);
-context.go(targetRoute);
+context.pop(); // Preserves navigation stack
 ```
 
-### For Navigation with pop()
+### For Sub-Page Back Navigation (within same tab)
 ```dart
 // ✅ Set tab index BEFORE popping
 final navController = Get.find<NavBarController>();

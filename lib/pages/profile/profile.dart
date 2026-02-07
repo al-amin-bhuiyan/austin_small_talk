@@ -12,46 +12,55 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ProfileController());
-
-    return Scaffold(
-      body: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(CustomAssets.backgroundImage),
-              fit: BoxFit.cover,
-            ),
-          ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // App Bar
-              _buildAppBar(context),
-              
-              // Main Content
+    return GetBuilder<ProfileController>(
+      init: ProfileController(),
+      autoRemove: false, // Keep alive during tab navigation
+      builder: (controller) {
+        return Scaffold(
+          body: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // App Bar
+                  _buildAppBar(context),
+                  
+                  // Main Content with RefreshIndicator
               Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24.w),
-                    child: Column(
-                      children: [
-                        SizedBox(height: 24.h),
-                        
-                        // Profile Header
-                        _buildProfileHeader(controller),
-                        
-                        SizedBox(height: 22.h),
-                        
-                        // Menu Items Group 1
-                        _buildMenuGroup1(controller, context),
-                        
-                        SizedBox(height: 16.h),
-                        
-                        // Menu Items Group 2
-                        _buildMenuGroup2(controller, context),
-                        
-                        SizedBox(height: 100.h),
-                      ],
+                child: RefreshIndicator(
+                  onRefresh: controller.refreshProfileData,
+                  color: AppColors.whiteColor,
+                  backgroundColor: Color(0xFF4B006E),
+                  strokeWidth: 3.0,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      child: Column(
+                        children: [
+                          SizedBox(height: 24.h),
+                          
+                          // Profile Header
+                          _buildProfileHeader(controller),
+                          
+                          SizedBox(height: 22.h),
+                          
+                          // Menu Items Group 1
+                          _buildMenuGroup1(controller, context),
+                          
+                          SizedBox(height: 16.h),
+                          
+                          // Menu Items Group 2
+                          _buildMenuGroup2(controller, context),
+                          
+                          SizedBox(height: 100.h),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -61,7 +70,9 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -138,12 +149,55 @@ class ProfileScreen extends StatelessWidget {
                           width: 94.w,
                           height: 94.h,
                           fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: AppColors.whiteColor,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            // If network image fails, show initials
+                            return Container(
+                              width: 94.w,
+                              height: 94.h,
+                              color: Color(0xFF4B006E),
+                              child: Center(
+                                child: Text(
+                                  controller.userName.value.isNotEmpty
+                                      ? controller.userName.value[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 40.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         )
-                      : Image.asset(
-                          CustomAssets.person,
+                      : Container(
+                          // No image URL - show initials
                           width: 94.w,
                           height: 94.h,
-                          fit: BoxFit.cover,
+                          color: Color(0xFF4B006E),
+                          child: Center(
+                            child: Text(
+                              controller.userName.value.isNotEmpty
+                                  ? controller.userName.value[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 40.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
                 ),
               ),

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../utils/app_fonts/app_fonts.dart';
+import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
 import 'profile_security_controller.dart';
 
@@ -13,55 +14,56 @@ class ProfileSecurityScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ProfileSecurityController());
-
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
-                  child: Column(
-                    children: [
-                      _buildChangePasswordItem(controller,context),
-                      SizedBox(height: 12.h),
-                      _buildToggleItem(
-                        title: 'Login Activity',
-                        value: controller.loginActivity,
-                        onChanged: controller.toggleLoginActivity,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildToggleItem(
-                        title: 'Email & Phone Verification',
-                        value: controller.emailPhoneVerification,
-                        onChanged: controller.toggleEmailPhoneVerification,
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildDeleteAccountItem(context, controller),
-                    ],
-                  ),
+    return GetBuilder<ProfileSecurityController>(
+      init: ProfileSecurityController(),
+      autoRemove: true,
+      builder: (controller) {
+        return Scaffold(
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-      // bottomNavigationBar: SafeArea(
-      //   child: CustomNavBar(controller: navBarController),
-      // ),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 100.h),
+                        child: Column(
+                          children: [
+                            _buildChangePasswordItem(controller,context),
+                            SizedBox(height: 12.h),
+                            _buildToggleItem(
+                              title: 'Login Activity',
+                              value: controller.loginActivity,
+                              onChanged: controller.toggleLoginActivity,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildToggleItem(
+                              title: 'Email & Phone Verification',
+                              value: controller.emailPhoneVerification,
+                              onChanged: controller.toggleEmailPhoneVerification,
+                            ),
+                            SizedBox(height: 12.h),
+                            _buildDeleteAccountItem(context, controller),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        );
+      },
     );
   }
 
@@ -71,7 +73,12 @@ class ProfileSecurityScreen extends StatelessWidget {
       child: Row(
         children: [
           CustomBackButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Ensure profile tab (index 3) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(3);
+              context.pop();
+            },
           ),
           Expanded(
             child: Text(

@@ -36,9 +36,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// API Services for Authentication
 class ApiServices {
+  /// Helper method to format Authorization header with Bearer prefix
+  /// Handles cases where token already has Bearer prefix to avoid duplication
+  String _formatAuthHeader(String token) {
+    if (token.trim().isEmpty) {
+      throw Exception('Access token is empty');
+    }
+    
+    // Check if token already has Bearer prefix
+    if (token.startsWith('Bearer ')) {
+      return token;
+    }
+    
+    // Add Bearer prefix
+    return 'Bearer $token';
+  }
+
   /// Register new user
   Future<RegisterResponseModel> registerUser(RegisterRequestModel request) async {
     try {
+      print('🌐 Starting register API call...');
+      print('📡 URL: ${ApiConstant.register}');
+      print('📦 Request Body: ${jsonEncode(request.toJson())}');
+      
       final response = await http.post(
         Uri.parse(ApiConstant.register),
         headers: {
@@ -46,12 +66,17 @@ class ApiServices {
           'Accept': 'application/json',
         },
         body: jsonEncode(request.toJson()),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('❌ Register API request TIMED OUT after 30 seconds');
+          throw Exception('Request timed out. Please check your internet connection and try again.');
+        },
       );
 
-      print('API Request: POST ${ApiConstant.register}');
-      print('Request Body: ${jsonEncode(request.toJson())}');
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+      print('✅ API Response received!');
+      print('📊 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> jsonData = jsonDecode(response.body);
@@ -111,14 +136,40 @@ class ApiServices {
         body: jsonEncode(request.toJson()),
       );
 
+      print('');
+      print('╔═══════════════════════════════════════════════════════════╗');
+      print('║              VERIFY OTP API CALL                           ║');
+      print('╚═══════════════════════════════════════════════════════════╝');
       print('API Request: POST ${ApiConstant.verifyOtp}');
       print('Request Body: ${jsonEncode(request.toJson())}');
       print('Response Status: ${response.statusCode}');
       print('Response Body: ${response.body}');
+      print('');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> jsonData = jsonDecode(response.body);
-        return VerifyOtpResponseModel.fromJson(jsonData);
+        
+        print('📦 Parsed JSON Data:');
+        print('   Keys: ${jsonData.keys.toList()}');
+        print('   Has "access": ${jsonData.containsKey("access")}');
+        print('   Has "refresh": ${jsonData.containsKey("refresh")}');
+        print('   Has "token": ${jsonData.containsKey("token")}');
+        print('   Has "data": ${jsonData.containsKey("data")}');
+        if (jsonData['access'] != null) {
+          print('   access value type: ${jsonData["access"].runtimeType}');
+          print('   access value preview: ${jsonData["access"].toString().substring(0, 20)}...');
+        }
+        
+        final model = VerifyOtpResponseModel.fromJson(jsonData);
+        print('');
+        print('📦 Parsed Model:');
+        print('   accessToken: ${model.accessToken != null ? "Present (${model.accessToken!.length} chars)" : "NULL ❌"}');
+        print('   refreshToken: ${model.refreshToken != null ? "Present" : "NULL"}');
+        print('   userId: ${model.userId}');
+        print('   message: ${model.message}');
+        print('═══════════════════════════════════════════════════════════');
+        
+        return model;
       } else {
         // Try to parse error message from response
         try {
@@ -278,6 +329,10 @@ class ApiServices {
   /// Login user
   Future<LoginResponseModel> loginUser(LoginRequestModel request) async {
     try {
+      print('🌐 Starting login API call...');
+      print('📡 URL: ${ApiConstant.login}');
+      print('📦 Request Body: ${jsonEncode(request.toJson())}');
+      
       final response = await http.post(
         Uri.parse(ApiConstant.login),
         headers: {
@@ -285,12 +340,17 @@ class ApiServices {
           'Accept': 'application/json',
         },
         body: jsonEncode(request.toJson()),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('❌ Login API request TIMED OUT after 30 seconds');
+          throw Exception('Request timed out. Please check your internet connection and try again.');
+        },
       );
 
-      print('API Request: POST ${ApiConstant.login}');
-      print('Request Body: ${jsonEncode(request.toJson())}');
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+      print('✅ API Response received!');
+      print('📊 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> jsonData = jsonDecode(response.body);
@@ -790,12 +850,13 @@ class ApiServices {
     String accessToken,
   ) async {
     try {
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.post(
         Uri.parse(ApiConstant.changePassword),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
         body: jsonEncode(request.toJson()),
       );
@@ -926,14 +987,17 @@ class ApiServices {
       print('📡 GET USER PROFILE');
       print('═══════════════════════════════════════════');
       print('🌐 URL: ${ApiConstant.userProfile}');
-      print('🔑 Access Token: ${accessToken.length > 20 ? accessToken.substring(0, 20) : accessToken}...');
+      print('🔑 Raw Token: ${accessToken.length > 20 ? accessToken.substring(0, 20) : accessToken}...');
+      
+      final authHeader = _formatAuthHeader(accessToken);
+      print('📤 Auth Header: ${authHeader.substring(0, min(30, authHeader.length))}...');
 
       final response = await http.get(
         Uri.parse(ApiConstant.userProfile),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 
@@ -1017,12 +1081,13 @@ class ApiServices {
 
       print('📦 Request Body: ${jsonEncode(requestBody)}');
 
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.patch(
         Uri.parse(ApiConstant.userProfile),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
         body: jsonEncode(requestBody),
       );
@@ -1099,7 +1164,8 @@ class ApiServices {
       var request = http.MultipartRequest('PATCH', Uri.parse(ApiConstant.userProfile));
       
       // Add headers
-      request.headers['Authorization'] = 'Bearer $accessToken';
+      final authHeader = _formatAuthHeader(accessToken);
+      request.headers['Authorization'] = authHeader;
       request.headers['Accept'] = 'application/json';
 
       // Add text fields
@@ -1194,14 +1260,15 @@ class ApiServices {
     try {
       print('📡 Creating scenario...');
       print('📝 Request: ${jsonEncode(request.toJson())}');
-      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+      print('📝 Raw Token: ${accessToken.substring(0, 20)}...');
 
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.post(
         Uri.parse(ApiConstant.createScenario),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
         body: jsonEncode(request.toJson()),
       );
@@ -1277,14 +1344,16 @@ class ApiServices {
   }) async {
     try {
       print('📡 Fetching user scenarios...');
-      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+      print('📝 Raw Token: ${accessToken.substring(0, 20)}...');
+      
+      final authHeader = _formatAuthHeader(accessToken);
 
       final response = await http.get(
         Uri.parse(ApiConstant.createScenario),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 
@@ -1329,14 +1398,17 @@ class ApiServices {
   }) async {
     try {
       print('📡 Fetching daily scenarios...');
-      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+      print('📝 Raw Token: ${accessToken.substring(0, 20)}...');
+      
+      final authHeader = _formatAuthHeader(accessToken);
+      print('📤 Auth Header: ${authHeader.substring(0, min(30, authHeader.length))}...');
 
       final response = await http.get(
         Uri.parse(ApiConstant.dailyScenarios),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 
@@ -1381,14 +1453,15 @@ class ApiServices {
   }) async {
     try {
       print('📡 Fetching chat history...');
-      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+      print('📝 Raw Token: ${accessToken.substring(0, 20)}...');
 
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.get(
         Uri.parse(ApiConstant.chatHistory),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 
@@ -1433,14 +1506,15 @@ class ApiServices {
   }) async {
     try {
       print('📡 Deleting account...');
-      print('📝 Access Token: ${accessToken.substring(0, 20)}...');
+      print('📝 Raw Token: ${accessToken.substring(0, 20)}...');
 
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.delete(
         Uri.parse(ApiConstant.deleteAccount),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 
@@ -1536,14 +1610,23 @@ class ApiServices {
       print('Token Length: ${token.length} characters');
       print('═══════════════════════════════════════════');
       
+      final authHeader = _formatAuthHeader(token);
+      
+      // ✅ Add timeout - AI session start should complete within 60 seconds
       final response = await http.post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': authHeader,
         },
         body: jsonEncode(requestBody),
+      ).timeout(
+        const Duration(seconds: 60), // 60 seconds for AI to initialize session
+        onTimeout: () {
+          print('❌ startChatSession TIMED OUT after 60 seconds');
+          throw Exception('Server is taking too long to respond. Please try again.');
+        },
       );
 
       print('═══════════════════════════════════════════');
@@ -1629,17 +1712,35 @@ class ApiServices {
       print('Session ID: $sessionId (in URL)');
       print('Request Body: ${jsonEncode(requestBody)}');
       print('Auth Token: Present (${token.length > 20 ? token.substring(0, 20) : token}...)');
+      print('⏱️ Request started at: ${DateTime.now()}');
       print('═══════════════════════════════════════════');
       
+      final authHeader = _formatAuthHeader(token);
+      
+      // ✅ Track request timing
+      final stopwatch = Stopwatch()..start();
+      
+      // ✅ Add timeout - AI responses should complete within 60 seconds
       final response = await http.post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': authHeader,
         },
         body: jsonEncode(requestBody),
+      ).timeout(
+        const Duration(seconds: 60), // 60 seconds for AI response
+        onTimeout: () {
+          stopwatch.stop();
+          print('❌ sendChatMessage TIMED OUT after ${stopwatch.elapsedMilliseconds}ms');
+          print('⏱️ Timeout at: ${DateTime.now()}');
+          throw Exception('AI is taking too long to respond. Please try again.');
+        },
       );
+      
+      stopwatch.stop();
+      print('⏱️ Response received in ${stopwatch.elapsedMilliseconds}ms');
 
       print('═══════════════════════════════════════════');
       print('📥 RESPONSE FROM API');
@@ -1708,11 +1809,12 @@ class ApiServices {
       print('URL: ${ApiConstant.getSessionHistoryUrl(sessionId)}');
       print('Session ID: $sessionId');
 
+      final authHeader = _formatAuthHeader(accessToken);
       final response = await http.get(
         Uri.parse(ApiConstant.getSessionHistoryUrl(sessionId)),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': authHeader,
         },
       );
 

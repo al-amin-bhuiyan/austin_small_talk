@@ -88,7 +88,7 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       // Remember me checkbox
                       Obx(
-                        () => InkWell(
+                            () => InkWell(
                           onTap: controller.toggleRememberMe,
                           child: Row(
                             children: [
@@ -99,7 +99,7 @@ class LoginScreen extends StatelessWidget {
                                   value: controller.rememberMe.value,
                                   onChanged: (_) => controller.toggleRememberMe(),
                                   fillColor: WidgetStateProperty.resolveWith(
-                                    (states) {
+                                        (states) {
                                       if (states.contains(WidgetState.selected)) {
                                         return AppColors.whiteColor;
                                       }
@@ -147,7 +147,7 @@ class LoginScreen extends StatelessWidget {
 
                   // Continue Button
                   Obx(
-                    () => CustomButton(
+                        () => CustomButton(
                       label: 'Continue',
                       onPressed:()=> controller.onLoginPressed(context),
                       isLoading: controller.isLoading.value,

@@ -2,33 +2,70 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:go_router/go_router.dart';
-import '../../core/app_route/app_path.dart';
 import '../../core/custom_assets/custom_assets.dart';
-import '../../data/global/scenario_data.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
-import '../../utils/nav_bar/nav_bar_controller.dart';
-import '../../service/auth/models/scenario_model.dart';
 import 'history_controller.dart';
 
 /// History Screen - Shows chat history with conversations
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<HistoryController>();
-    final navBarController = Get.find<NavBarController>();
-    
-    // Set nav bar to history tab (index 1) after build completes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (navBarController.selectedIndex.value != 1) {
-        navBarController.selectedIndex.value = 1;
-      }
-    });
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
 
-    return Scaffold(
+class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserver, RouteAware {
+  bool _hasRefreshed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add observer to detect when app resumes
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    // Remove observer when widget is disposed
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reset refresh flag when route changes (user navigates to this screen)
+    _hasRefreshed = false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh data when app comes to foreground or page becomes visible
+    if (state == AppLifecycleState.resumed) {
+      final controller = Get.find<HistoryController>();
+      controller.refreshHistoryData();
+      _hasRefreshed = false; // Reset flag when app resumes
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<HistoryController>(
+      init: HistoryController(),
+      autoRemove: false, // Keep alive during tab navigation
+      builder: (controller) {
+        // ✅ Refresh data when navigating back, but only once per screen appearance
+        if (!_hasRefreshed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_hasRefreshed) {
+              _hasRefreshed = true;
+              controller.refreshHistoryData();
+            }
+          });
+        }
+
+        return Scaffold(
       extendBody: true,
       body: Container(
         width: double.infinity,
@@ -46,39 +83,32 @@ class HistoryScreen extends StatelessWidget {
               // Header Section
               _buildHeader(context),
 
-              // Scrollable Content
+              // Scrollable Content with RefreshIndicator
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 16.h),
-                        _buildSectionTitle(),
-                        SizedBox(height: 16.h),
-                        _buildSearchBar(controller),
-                        SizedBox(height: 20.h),
-                        
-                        // AI Scenario Chat History
-                        _buildConversationList(controller, context),
-                        
-                     //   SizedBox(height: 20.h),
-                        
-                        // Create Your Own Scenario Button
-                     //   _buildNewScenarioButton(controller, context),
-                        
-                        SizedBox(height: 20.h),
-                        
-                        // Created Scenarios Header
-                        _buildCreatedScenariosHeader(),
-                        
-                        SizedBox(height: 16.h),
-                        
-                        // User Created Scenarios List
-                        _buildUserScenarios(controller, context),
-                      ],
+                child: RefreshIndicator(
+                  onRefresh: controller.refreshHistoryData,
+                  color: AppColors.whiteColor,
+                  backgroundColor: Color(0xFF4B006E),
+                  strokeWidth: 3.0,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                      child: Padding(
+                      padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 16.h),
+                          _buildSectionTitle(),
+                          SizedBox(height: 16.h),
+                          _buildSearchBar(controller),
+                          SizedBox(height: 20.h),
+
+                          // AI Scenario Chat History
+                          _buildConversationList(controller, context),
+
+                          SizedBox(height: 20.h),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -88,6 +118,8 @@ class HistoryScreen extends StatelessWidget {
         ),
       ),
       // ✅ Nav bar removed - MainNavigation provides it
+        );
+      },
     );
   }
 
@@ -224,7 +256,6 @@ class HistoryScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () => controller.onConversationTap(conversation.id, context),
       child: Container(
-        margin: EdgeInsets.only(bottom: 12.h),
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
@@ -364,7 +395,7 @@ class HistoryScreen extends StatelessWidget {
         ),
       );
     }
-    
+
     // Otherwise, use SVG asset
     String iconPath;
     switch (iconType) {
@@ -388,241 +419,6 @@ class HistoryScreen extends StatelessWidget {
       iconPath,
       width: 24.w,
       height: 24.h,
-    );
-  }
-
-  Widget _buildNewScenarioButton(HistoryController controller, BuildContext context) {
-    return GestureDetector(
-      onTap: () => controller.onNewScenario(context),
-      child: Container(
-        width: double.infinity,
-        height: 56.h,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFF4B006E),
-              Color(0xFF8B5CF6),
-            ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(28.r),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFF8B5CF6).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_circle_outline,
-              color: AppColors.whiteColor,
-              size: 24.sp,
-            ),
-            SizedBox(width: 12.w),
-            Text(
-              'Create Your Own Scenario',
-              style: AppFonts.poppinsSemiBold(
-                fontSize: 16,
-                color: AppColors.whiteColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCreatedScenariosHeader() {
-    return Row(
-      children: [
-        Expanded(
-          child: Divider(
-            color: AppColors.whiteColor.withValues(alpha: 0.3),
-            thickness: 1,
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Text(
-            'Created Scenarios',
-            style: AppFonts.poppinsSemiBold(
-              fontSize: 14,
-              color: AppColors.whiteColor.withValues(alpha: 0.8),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Divider(
-            color: AppColors.whiteColor.withValues(alpha: 0.3),
-            thickness: 1,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUserScenarios(HistoryController controller, BuildContext context) {
-    return Obx(() {
-      if (controller.isScenariosLoading.value) {
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.all(20.h),
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.whiteColor),
-            ),
-          ),
-        );
-      }
-
-      if (controller.userScenarios.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.all(20.h),
-            child: Text(
-              'No scenarios created yet',
-              style: AppFonts.poppinsRegular(
-                fontSize: 14,
-                color: AppColors.whiteColor.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-        );
-      }
-
-      return Column(
-        children: controller.userScenarios.map((scenario) {
-          return _buildScenarioItem(scenario, context);
-        }).toList(),
-      );
-    });
-  }
-
-  Widget _buildScenarioItem(ScenarioModel scenario, BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        print('🎯 History scenario tapped - ID: ${scenario.id}, Title: ${scenario.scenarioTitle}');
-        print('📝 Scenario ID from API: ${scenario.scenarioId}');
-        
-        // Create scenario data object for message screen
-        final scenarioData = ScenarioData(
-          scenarioId: scenario.scenarioId,  // Use actual scenario_id from API
-          scenarioTitle: scenario.scenarioTitle,
-          scenarioDescription: scenario.description,
-          scenarioIcon: '🎯',  // Default icon for user-created scenarios
-          scenarioType: 'user_created',
-          difficulty: scenario.difficultyLevel,
-          sourceScreen: 'history', // Track that user came from History
-        );
-        
-        print('📤 Navigating to message screen from history');
-        print('📊 ScenarioData: scenarioId=${scenarioData.scenarioId}, title=${scenarioData.scenarioTitle}');
-        print('📌 Source Screen: ${scenarioData.sourceScreen}');
-        
-        // Navigate to message screen
-        context.push(AppPath.messageScreen, extra: scenarioData);
-      },
-      child: Container(
-        margin: EdgeInsets.only(bottom: 12.h),
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-            width: 1.w,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Icon - Centered vertically (same as conversations)
-            Container(
-              width: 48.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(24.r),
-              ),
-              child: Center(
-                child: Text(
-                  '🎯', // User-created scenario icon
-                  style: TextStyle(fontSize: 24.sp),
-                ),
-              ),
-            ),
-            SizedBox(width: 12.w),
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title + Difficulty Badge
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          scenario.scenarioTitle,
-                          style: AppFonts.poppinsSemiBold(
-                            fontSize: 16,
-                            color: AppColors.whiteColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (scenario.difficultyLevel.isNotEmpty) ...[
-                        SizedBox(width: 8.w),
-                        _buildDifficultyBadge(scenario.difficultyLevel),
-                      ],
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  // Description
-                  Text(
-                    scenario.description,
-                    style: AppFonts.poppinsRegular(
-                      fontSize: 13,
-                      color: AppColors.whiteColor.withValues(alpha: 0.65),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 8.h),
-                  // Status indicator (left aligned)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // "Your Scenario" label
-                      Text(
-                        'Your Scenario',
-                        style: AppFonts.poppinsRegular(
-                          fontSize: 12,
-                          color: AppColors.whiteColor.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      // Empty space or you can add creation date here
-                      Text(
-                        'Tap to start',
-                        style: AppFonts.poppinsRegular(
-                          fontSize: 12,
-                          color: AppColors.whiteColor.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

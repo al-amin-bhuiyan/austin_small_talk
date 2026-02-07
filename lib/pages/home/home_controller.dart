@@ -1,4 +1,5 @@
 import 'package:austin_small_talk/core/app_route/app_path.dart';
+import 'package:austin_small_talk/core/global/profile_controller.dart';
 import 'package:austin_small_talk/data/global/shared_preference.dart';
 import 'package:austin_small_talk/data/global/scenario_data.dart';
 import 'package:austin_small_talk/service/auth/api_service/api_services.dart';
@@ -28,19 +29,35 @@ class HomeController extends GetxController {
     fetchDailyScenarios();
   }
 
+  @override
+  void onClose() {
+    super.onClose();
+  }
+
   /// Fetch user profile from API
   Future<void> fetchUserProfile() async {
     try {
+      print('');
+      print('╔═══════════════════════════════════════════════════════════╗');
+      print('║              FETCHING USER PROFILE                         ║');
+      print('╚═══════════════════════════════════════════════════════════╝');
+
       // Get access token
       final accessToken = SharedPreferencesUtil.getAccessToken();
-      
+
+      print('🔑 Checking access token:');
+      print('   Token exists: ${accessToken != null}');
+      print('   Token length: ${accessToken?.length ?? 0}');
+
       if (accessToken == null || accessToken.isEmpty) {
         print('❌ No access token found for profile');
+        print('   isLoggedIn: ${SharedPreferencesUtil.isLoggedIn()}');
+        print('═══════════════════════════════════════════════════════════');
         return;
       }
 
-      print('📡 Fetching user profile...');
-      
+      print('📡 Calling getUserProfile API...');
+
       // Call API
       final profile = await _apiServices.getUserProfile(
         accessToken: accessToken,
@@ -49,11 +66,29 @@ class HomeController extends GetxController {
       // Update user data
       userName.value = profile.name;
       userProfileImage.value = profile.getFullImageUrl(ApiConstant.baseUrl) ?? '';
-      
-      print('✅ User profile loaded: ${profile.name}');
-      print('📸 Profile image: ${userProfileImage.value}');
+
+      // ✅ Sync with GlobalProfileController for all screens
+      try {
+        GlobalProfileController.instance.updateAllProfileData(
+          imageUrl: userProfileImage.value,
+          name: profile.name,
+          email: profile.email,
+        );
+        print('✅ GlobalProfileController synced');
+      } catch (e) {
+        print('⚠️ GlobalProfileController not available: $e');
+      }
+
+      print('✅ User profile loaded:');
+      print('   Name: ${profile.name}');
+      print('   Email: ${profile.email}');
+      print('   Image: ${userProfileImage.value}');
+      print('═══════════════════════════════════════════════════════════');
     } catch (e) {
-      print('❌ Error fetching user profile: $e');
+      print('');
+      print('❌❌❌ ERROR FETCHING USER PROFILE ❌❌❌');
+      print('Error: $e');
+      print('═══════════════════════════════════════════════════════════');
       // Keep default values on error
     }
   }
@@ -62,10 +97,10 @@ class HomeController extends GetxController {
   Future<void> fetchDailyScenarios() async {
     try {
       isLoading.value = true;
-      
+
       // Get access token
       final accessToken = SharedPreferencesUtil.getAccessToken();
-      
+
       if (accessToken == null || accessToken.isEmpty) {
         print('❌ No access token found');
         isLoading.value = false;
@@ -73,7 +108,7 @@ class HomeController extends GetxController {
       }
 
       print('📡 Fetching daily scenarios...');
-      
+
       // Call API
       final response = await _apiServices.getDailyScenarios(
         accessToken: accessToken,
@@ -95,7 +130,7 @@ class HomeController extends GetxController {
   /// Handle scenario card tap
   void onScenarioTap(BuildContext context, String scenarioId, String scenarioIcon, String scenarioTitle, String scenarioDescription) {
     print('🎯 onScenarioTap called - ID: $scenarioId, Title: $scenarioTitle');
-    
+
     // Create scenario data object
     final scenarioData = ScenarioData(
       scenarioId: scenarioId,
@@ -104,7 +139,7 @@ class HomeController extends GetxController {
       scenarioTitle: scenarioTitle,
       scenarioDescription: scenarioDescription,
     );
-    
+
     // Show scenario dialog
     showScenarioDialog(context, scenarioData);
   }
@@ -137,5 +172,27 @@ class HomeController extends GetxController {
   /// Update user name
   void updateUserName(String name) {
     userName.value = name;
+  }
+
+  /// Refresh all home screen data
+  Future<void> refreshHomeData() async {
+    print('');
+    print('╔═══════════════════════════════════════════════════════════╗');
+    print('║              REFRESHING HOME SCREEN DATA                   ║');
+    print('╚═══════════════════════════════════════════════════════════╝');
+
+    try {
+      // Fetch both profile and scenarios in parallel
+      await Future.wait([
+        fetchUserProfile(),
+        fetchDailyScenarios(),
+      ]);
+
+      print('✅ Home screen data refreshed successfully');
+      print('═══════════════════════════════════════════════════════════');
+    } catch (e) {
+      print('❌ Error refreshing home data: $e');
+      print('═══════════════════════════════════════════════════════════');
+    }
   }
 }

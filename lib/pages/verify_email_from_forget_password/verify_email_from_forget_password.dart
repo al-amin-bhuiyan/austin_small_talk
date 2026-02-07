@@ -102,21 +102,35 @@ class VerifyEmailFromForgetPasswordScreen extends StatelessWidget {
                         width: 50.w,
                         height: 50.h,
                         child: _buildOtpBox(
+                          context: context,
                           controller: controller.otpControllers[index],
                           focusNode: controller.focusNodes[index],
-                          onChanged: (value) {
-                            controller.onDigitChanged(index, value);
-                          },
-                          onBackspace: () {
-                            controller.onDigitDeleted(index);
-                          },
+                          index: index,
+                          otpController: controller,
                         ),
                       ),
                     ),
                   ),
                 ),
 
-                SizedBox(height: 36.h),
+                SizedBox(height: 16.h),
+
+                // Paste Code Button
+                Center(
+                  child: GestureDetector(
+                    onTap: () => controller.handlePasteFromClipboard(context),
+                    child: Text(
+                      'Paste Code',
+                      style: AppFonts.poppinsSemiBold(
+                        fontSize: 14,
+                        color: AppColors.primaryColor,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 20.h),
 
                 // Help text
                 Center(
@@ -189,57 +203,61 @@ class VerifyEmailFromForgetPasswordScreen extends StatelessWidget {
 
   /// Build single OTP input box
   Widget _buildOtpBox({
+    required BuildContext context,
     required TextEditingController controller,
     required FocusNode focusNode,
-    required ValueChanged<String> onChanged,
-    required VoidCallback onBackspace,
+    required int index,
+    required VerifyEmailFromForgetPasswordController otpController,
   }) {
-    return Container(
-      width: 45.w,
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: Color(0xFF1E2A3A), // Dark blue background
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: AppColors.whiteColor.withAlpha(50),
-          width: 1.5,
+    return Obx(() {
+      // Check if the field has input from observable state
+      final hasInput = otpController.otpValues[index].value.isNotEmpty;
+      
+      return Container(
+        width: 45.w,
+        height: 50.h,
+        decoration: BoxDecoration(
+          color: Color(0xFF1E2A3A), // Dark blue background
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: hasInput ? AppColors.primaryColor : AppColors.whiteColor.withAlpha(50),
+            width: 1.5,
+          ),
         ),
-      ),
-      child: TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        style: AppFonts.poppinsBold(
-          fontSize: 24,
-          color: AppColors.whiteColor,
+        child: TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 1,
+          style: AppFonts.poppinsBold(
+            fontSize: 24,
+            color: AppColors.whiteColor,
+          ),
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            counterText: '',
+            contentPadding: EdgeInsets.zero,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(1), // STRICT: Only 1 digit per field
+          ],
+          onChanged: (value) {
+            // Handle single digit entry or backspace
+            if (value.length <= 1) {
+              otpController.onDigitChanged(index, value, context);
+            }
+          },
+          onTap: () {
+            // Select all text when tapped for easy replacement
+            controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: controller.text.length,
+            );
+          },
         ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        onChanged: (value) {
-          onChanged(value);
-        },
-        onTap: () {
-          // Select all text when tapped for easy replacement
-          controller.selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: controller.text.length,
-          );
-        },
-        onFieldSubmitted: (value) {
-          // Handle when user presses done/enter
-          if (value.isEmpty && focusNode.hasFocus) {
-            onBackspace();
-          }
-        },
-      ),
-    );
+      );
+    });
   }
 }

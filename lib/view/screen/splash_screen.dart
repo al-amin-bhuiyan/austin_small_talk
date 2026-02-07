@@ -46,30 +46,23 @@ class SplashScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background Image
-          Image.asset(
-            CustomAssets.backgroundImage,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(CustomAssets.backgroundImage), // main_background.png
             fit: BoxFit.cover,
           ),
-          // Content
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App Logo (PNG) - use Image.asset for PNG files
-                Image.asset(
-                  CustomAssets.splashLogo,
-                  width: 150.w,
-                  height: 150.h,
-                ),
-                SizedBox(height: 24.h),
-              ],
-            ),
+        ),
+        child: Center(
+          child: Image.asset(
+            CustomAssets.splashLogo, // main_logo.png
+            width: 200.w,
+            height: 200.h,
+            fit: BoxFit.contain,
           ),
-        ],
+        ),
       ),
     );
   }

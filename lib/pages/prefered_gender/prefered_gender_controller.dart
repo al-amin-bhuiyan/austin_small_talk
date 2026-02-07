@@ -34,7 +34,13 @@ class PreferredGenderController extends GetxController {
 
   /// Handle login to account button press
   Future<void> onLoginToAccountPressed(BuildContext context) async {
+    print('');
+    print('╔═══════════════════════════════════════════════════════════╗');
+    print('║        LOGIN TO ACCOUNT BUTTON PRESSED (SIGNUP)           ║');
+    print('╚═══════════════════════════════════════════════════════════╝');
+    
     if (selectedGender.value.isEmpty) {
+      print('❌ No gender/voice selected');
       CustomSnackbar.warning(
         context: context,
         title: 'Selection Required',
@@ -42,17 +48,26 @@ class PreferredGenderController extends GetxController {
       );
       return;
     }
+    print('✅ Gender/voice selected: ${selectedGender.value}');
 
     try {
       isLoading.value = true;
+      print('⏳ Loading state: ${isLoading.value}');
 
       // Get registration data from CreateAccountController
       final createAccountController = Get.find<CreateAccountController>();
+      print('📦 Getting registration data from CreateAccountController...');
 
       if (createAccountController.tempEmail == null ||
           createAccountController.tempName == null ||
           createAccountController.tempPassword == null ||
           createAccountController.tempDateOfBirth == null) {
+        print('❌ Registration data not found:');
+        print('   tempEmail: ${createAccountController.tempEmail}');
+        print('   tempName: ${createAccountController.tempName}');
+        print('   tempPassword: ${createAccountController.tempPassword != null ? "exists" : "null"}');
+        print('   tempDateOfBirth: ${createAccountController.tempDateOfBirth}');
+        
         CustomSnackbar.error(
           context: context,
           title: 'Error',
@@ -64,6 +79,13 @@ class PreferredGenderController extends GetxController {
         return;
       }
 
+      print('✅ Registration data found:');
+      print('   Email: ${createAccountController.tempEmail}');
+      print('   Name: ${createAccountController.tempName}');
+      print('   Password length: ${createAccountController.tempPassword?.length ?? 0}');
+      print('   Date of Birth: ${createAccountController.tempDateOfBirth}');
+      print('   Voice: ${selectedGender.value}');
+
       // Create register request model with selected voice
       final request = RegisterRequestModel(
         email: createAccountController.tempEmail!,
@@ -73,11 +95,17 @@ class PreferredGenderController extends GetxController {
         voice: selectedGender.value, // Use selected gender as voice
         dateOfBirth: createAccountController.tempDateOfBirth!,
       );
+      print('📦 Registration request created');
 
       // Call API
+      print('📡 Calling registerUser API...');
       final response = await _apiServices.registerUser(request);
+      print('✅ Registration API response received');
+      print('   Message: ${response.message}');
+      print('   Email: ${response.email}');
 
       if (context.mounted) {
+        print('✅ Showing success snackbar');
         CustomSnackbar.success(
           context: context,
           title: 'Success',
@@ -86,19 +114,34 @@ class PreferredGenderController extends GetxController {
       }
 
       // Clear temporary data
+      print('🗑️ Clearing temporary registration data...');
       createAccountController.tempEmail = null;
       createAccountController.tempName = null;
       createAccountController.tempPassword = null;
       createAccountController.tempDateOfBirth = null;
+      print('✅ Temporary data cleared');
 
       // Navigate to verify email with flag=false (signup flow) and pass email
       if (context.mounted) {
+        print('🚀 Navigating to verify email...');
+        print('   Route: ${AppPath.verifyEmail}?flag=false');
+        print('   Email: ${response.email}');
         context.push(
           '${AppPath.verifyEmail}?flag=false',
           extra: response.email, // Pass email from API response
         );
+        print('✅ Navigation called');
       }
+      print('═══════════════════════════════════════════════════════════');
     } catch (e) {
+      print('');
+      print('❌❌❌ REGISTRATION ERROR ❌❌❌');
+      print('Error: $e');
+      print('Error type: ${e.runtimeType}');
+      print('Stack trace:');
+      print(StackTrace.current);
+      print('═══════════════════════════════════════════════════════════');
+      
       String errorMessage = e.toString().replaceAll('Exception: ', '');
       
       if (!context.mounted) return;
@@ -110,17 +153,36 @@ class PreferredGenderController extends GetxController {
         CustomSnackbar.error(
           context: context,
           title: 'Email Already Registered',
-          message: errorMessage,
+          message: 'This email is already registered. Please use a different email or login.',
+        );
+      } else if (errorMessage.toLowerCase().contains('network') ||
+                 errorMessage.toLowerCase().contains('connection') ||
+                 errorMessage.toLowerCase().contains('timeout')) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Connection Error',
+          message: 'Please check your internet connection and try again.',
+        );
+      } else if (errorMessage.toLowerCase().contains('server') ||
+                 errorMessage.toLowerCase().contains('500')) {
+        CustomSnackbar.error(
+          context: context,
+          title: 'Server Error',
+          message: 'Something went wrong on our end. Please try again later.',
         );
       } else {
+        // Show a generic user-friendly message for unknown errors
         CustomSnackbar.error(
           context: context,
           title: 'Registration Failed',
-          message: errorMessage,
+          message: errorMessage.isNotEmpty 
+              ? errorMessage 
+              : 'Unable to complete registration. Please try again.',
         );
       }
     } finally {
       isLoading.value = false;
+      print('⏳ Loading state: ${isLoading.value}');
     }
   }
 }

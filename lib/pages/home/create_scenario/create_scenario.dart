@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import '../../../utils/nav_bar/nav_bar.dart';
 import '../../../utils/nav_bar/nav_bar_controller.dart';
 import '../../../core/custom_assets/custom_assets.dart';
 import '../../../view/custom_back_button/custom_back_button.dart';
@@ -12,65 +11,79 @@ class CreateScenarioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(CreateScenarioController());
     final navBarController = Get.find<NavBarController>();
 
-    return Scaffold(
-      extendBody: true,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(CustomAssets.backgroundImage),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              // App Bar
-              _buildAppBar(context),
-              SizedBox(height: 20.h),
-              // Main Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Scenario Title
-                      _buildScenarioTitle(controller),
-                      
-                      SizedBox(height: 16.h),
-                      
-                      // Description
-                      _buildDescription(controller),
-                      
-                      SizedBox(height: 16.h),
-                      
-                      // Difficulty Level
-                      _buildDifficultyLevel(controller),
-                      
-                      SizedBox(height: 122.h),
-                      
-                      // Start Scenario Button
-                      _buildStartScenarioButton(controller, context),
-                      
-                      SizedBox(height: 100.h),
-                    ],
-                  ),
+    return GetBuilder<CreateScenarioController>(
+      init: CreateScenarioController(),
+      autoRemove: true,
+      builder: (controller) {
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              // Ensure we stay on home tab (index 0) after back navigation
+              navBarController.returnToTab(0);
+            }
+          },
+          child: Scaffold(
+            extendBody: true,
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(CustomAssets.backgroundImage),
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    // App Bar
+                    _buildAppBar(context),
+                    SizedBox(height: 20.h),
+                    // Main Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Scenario Title
+                            _buildScenarioTitle(controller),
+                            
+                            SizedBox(height: 16.h),
+                            
+                            // Description
+                            _buildDescription(controller),
+                            
+                            SizedBox(height: 16.h),
+                            
+                            // Difficulty Level
+                            _buildDifficultyLevel(controller),
+                            
+                            SizedBox(height: 122.h),
+                            
+                            // Start Scenario Button
+                            _buildStartScenarioButton(controller, context),
+                            
+                            SizedBox(height: 100.h),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // bottomNavigationBar: SafeArea(
+            //   child: CustomNavBar(controller: navBarController),
+            // ),
           ),
-        ),
-      ),
-      
-      // bottomNavigationBar: SafeArea(
-      //   child: CustomNavBar(controller: navBarController),
-      // ),
+        );
+      },
     );
   }
 
@@ -82,7 +95,12 @@ class CreateScenarioScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CustomBackButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              // Ensure home tab (index 0) stays selected
+              final navController = Get.find<NavBarController>();
+              navController.returnToTab(0);
+              Navigator.pop(context);
+            },
             width: 35,
             height: 35,
             borderRadius: 17,

@@ -117,4 +117,17 @@ class ProfileController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  /// Refresh profile data - called by pull-to-refresh
+  Future<void> refreshProfileData() async {
+    print('');
+    print('╔═══════════════════════════════════════════════════════════╗');
+    print('║              REFRESHING PROFILE DATA                       ║');
+    print('╚═══════════════════════════════════════════════════════════╝');
+    
+    await loadUserProfile();
+    
+    print('✅ Profile data refreshed successfully');
+    print('═══════════════════════════════════════════════════════════');
+  }
 }

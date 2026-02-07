@@ -14,12 +14,12 @@ import '../../history/history_controller.dart';
 class CreateScenarioController extends GetxController {
   // Observable states
   final RxBool isLoading = false.obs;
-  
+
   // Form fields
   final RxString scenarioTitle = ''.obs;
   final RxString description = ''.obs;
   final RxString difficultyLevel = 'Easy'.obs;  // Display value (will be converted to lowercase for API)
-  
+
   // Difficulty options - Display names (API expects: easy, medium, hard - lowercase)
   final List<String> difficultyOptions = ['Easy', 'Medium', 'Hard'];
 
@@ -89,7 +89,7 @@ class CreateScenarioController extends GetxController {
 
       // Get access token
       final accessToken = SharedPreferencesUtil.getAccessToken();
-      
+
       if (accessToken == null || accessToken.isEmpty) {
         ToastMessage.error(
           'Please login first',
@@ -132,15 +132,15 @@ class CreateScenarioController extends GetxController {
       print('   Scenario ID: ${response.scenarioId}');
 
       ToastMessage.success('Scenario created successfully!');
-      
-      // Refresh history controller to show new scenario
+
+      // Refresh history controller to show new chat session (when user returns to history)
       try {
         final historyController = Get.find<HistoryController>();
-        await historyController.fetchUserScenarios();
+        await historyController.refreshHistoryData();
       } catch (e) {
         print('⚠️ History controller not found, will refresh on next visit');
       }
-      
+
       // Create scenario data for message screen
       final scenarioData = ScenarioData(
         scenarioId: response.scenarioId,  // ai_scenario_id from API
@@ -151,7 +151,7 @@ class CreateScenarioController extends GetxController {
         difficulty: response.difficultyLevel,
         sourceScreen: 'create_scenario', // Track that user came from Create Scenario
       );
-      
+
       print('═══════════════════════════════════════════');
       print('📤 NAVIGATING TO MESSAGE SCREEN:');
       print('   Scenario ID (ai_scenario_id): ${scenarioData.scenarioId}');
@@ -160,7 +160,7 @@ class CreateScenarioController extends GetxController {
       print('   Source Screen: ${scenarioData.sourceScreen}');
       print('   This ID will be used to start chat session');
       print('═══════════════════════════════════════════');
-      
+
       // Navigate to message screen to start conversation
       if (context.mounted) {
         print('✅ Context is mounted, attempting navigation...');

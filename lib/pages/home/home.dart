@@ -3,9 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import '../../core/custom_assets/custom_assets.dart';
+import '../../core/global/profile_controller.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
-import '../../utils/nav_bar/nav_bar_controller.dart';
 import 'home_controller.dart';
 
 /// Home Screen - Main screen with scenario selection
@@ -15,14 +15,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<HomeController>();
-    final navBarController = Get.find<NavBarController>();
-    
-    // Set nav bar to home tab (index 0) after build completes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (navBarController.selectedIndex.value != 0) {
-        navBarController.selectedIndex.value = 0;
-      }
-    });
 
     return Scaffold(
       extendBody: true,
@@ -42,28 +34,25 @@ class HomeScreen extends StatelessWidget {
               // Header Section
               _buildHeader(controller, context),
 
-              // Scrollable Content
+              // Content without scrolling
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 10.h),
-                        _buildTitle(),
-                        SizedBox(height: 8.h),
-                        _buildSubtitle(),
-                        SizedBox(height: 24.h),
-                        _buildSectionTitle(),
-                        SizedBox(height: 16.h),
-                        _buildScenarioGrid(controller, context),
-                        SizedBox(height: 12.h),
-                        _buildCreateOwnScenario(controller, context),
-                     //   SizedBox(height: 12.h),
-                      ],
-                    ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 10.h),
+                      _buildTitle(),
+                      SizedBox(height: 8.h),
+                      _buildSubtitle(),
+                      SizedBox(height: 24.h),
+                      _buildSectionTitle(),
+                      SizedBox(height: 16.h),
+                      _buildScenarioGrid(controller, context),
+                      SizedBox(height: 12.h),
+                      _buildCreateOwnScenario(controller, context),
+                   //   SizedBox(height: 12.h),
+                    ],
                   ),
                 ),
               ),
@@ -106,14 +95,17 @@ class HomeScreen extends StatelessWidget {
   }
 
 
-  // This widget builds the scenario grid with multiple scenario cards.
+  // This widget builds the scenario as a fixed 2x2 grid without scrolling.
   Widget _buildScenarioGrid(HomeController controller, BuildContext context) {
     return Obx(() {
       // Show loading indicator while fetching
       if (controller.isLoading.value && controller.dailyScenarios.isEmpty) {
-        return Center(
-          child: CircularProgressIndicator(
-            color: Colors.white,
+        return SizedBox(
+          height: 331.h,
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
           ),
         );
       }
@@ -123,100 +115,112 @@ class HomeScreen extends StatelessWidget {
 
       // If no scenarios, show empty state
       if (scenarios.isEmpty) {
-        return Center(
-          child: Text(
-            'No scenarios available',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16.sp,
+        return SizedBox(
+          height: 331.h,
+          child: Center(
+            child: Text(
+              'No scenarios available',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16.sp,
+              ),
             ),
           ),
         );
       }
 
-      // Build grid with scenarios
+      // Take only first 4 scenarios
+      final displayScenarios = scenarios.take(4).toList();
+
+      // Build 2x2 grid without scrolling
       return Column(
         children: [
-          // First row
-          if (scenarios.length > 0)
-            Row(
-              children: [
+          // First row - 2 scenarios
+          Row(
+            children: [
+              // First scenario
+              Expanded(
+                child: _buildScenarioCard(
+                  icon: displayScenarios[0].emoji,
+                  title: displayScenarios[0].title,
+                  description: displayScenarios[0].description,
+                  isEmoji: true,
+                  onTap: () => controller.onScenarioTap(
+                    context,
+                    displayScenarios[0].scenarioId,
+                    displayScenarios[0].emoji,
+                    displayScenarios[0].title,
+                    displayScenarios[0].description,
+                  ),
+                ),
+              ),
+              SizedBox(width: 15.w),
+              // Second scenario
+              if (displayScenarios.length > 1)
                 Expanded(
                   child: _buildScenarioCard(
-                    icon: scenarios[0].emoji,
-                    title: scenarios[0].title,
-                    description: scenarios[0].description,
+                    icon: displayScenarios[1].emoji,
+                    title: displayScenarios[1].title,
+                    description: displayScenarios[1].description,
                     isEmoji: true,
                     onTap: () => controller.onScenarioTap(
                       context,
-                      scenarios[0].scenarioId,
-                      scenarios[0].emoji,
-                      scenarios[0].title,
-                      scenarios[0].description,
+                      displayScenarios[1].scenarioId,
+                      displayScenarios[1].emoji,
+                      displayScenarios[1].title,
+                      displayScenarios[1].description,
                     ),
                   ),
-                ),
-                if (scenarios.length > 1) ...[
-                  SizedBox(width: 15.w),
-                  Expanded(
-                    child: _buildScenarioCard(
-                      icon: scenarios[1].emoji,
-                      title: scenarios[1].title,
-                      description: scenarios[1].description,
-                      isEmoji: true,
-                      onTap: () => controller.onScenarioTap(
-                        context,
-                        scenarios[1].scenarioId,
-                        scenarios[1].emoji,
-                        scenarios[1].title,
-                        scenarios[1].description,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          // Second row
-          if (scenarios.length > 2) ...[
-            SizedBox(height: 15.h),
-            Row(
-              children: [
+                )
+              else
+                Expanded(child: SizedBox()),
+            ],
+          ),
+          SizedBox(height: 15.h),
+          // Second row - 2 scenarios
+          Row(
+            children: [
+              // Third scenario
+              if (displayScenarios.length > 2)
                 Expanded(
                   child: _buildScenarioCard(
-                    icon: scenarios[2].emoji,
-                    title: scenarios[2].title,
-                    description: scenarios[2].description,
+                    icon: displayScenarios[2].emoji,
+                    title: displayScenarios[2].title,
+                    description: displayScenarios[2].description,
                     isEmoji: true,
                     onTap: () => controller.onScenarioTap(
                       context,
-                      scenarios[2].scenarioId,
-                      scenarios[2].emoji,
-                      scenarios[2].title,
-                      scenarios[2].description,
+                      displayScenarios[2].scenarioId,
+                      displayScenarios[2].emoji,
+                      displayScenarios[2].title,
+                      displayScenarios[2].description,
                     ),
                   ),
-                ),
-                if (scenarios.length > 3) ...[
-                  SizedBox(width: 15.w),
-                  Expanded(
-                    child: _buildScenarioCard(
-                      icon: scenarios[3].emoji,
-                      title: scenarios[3].title,
-                      description: scenarios[3].description,
-                      isEmoji: true,
-                      onTap: () => controller.onScenarioTap(
-                        context,
-                        scenarios[3].scenarioId,
-                        scenarios[3].emoji,
-                        scenarios[3].title,
-                        scenarios[3].description,
-                      ),
+                )
+              else
+                Expanded(child: SizedBox()),
+              SizedBox(width: 15.w),
+              // Fourth scenario
+              if (displayScenarios.length > 3)
+                Expanded(
+                  child: _buildScenarioCard(
+                    icon: displayScenarios[3].emoji,
+                    title: displayScenarios[3].title,
+                    description: displayScenarios[3].description,
+                    isEmoji: true,
+                    onTap: () => controller.onScenarioTap(
+                      context,
+                      displayScenarios[3].scenarioId,
+                      displayScenarios[3].emoji,
+                      displayScenarios[3].title,
+                      displayScenarios[3].description,
                     ),
                   ),
-                ],
-              ],
-            ),
-          ],
+                )
+              else
+                Expanded(child: SizedBox()),
+            ],
+          ),
         ],
       );
     });
@@ -233,7 +237,6 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 177.w,
         height: 158.h,
         padding: EdgeInsets.all(12.w),
         decoration: ShapeDecoration(
@@ -437,7 +440,8 @@ class HomeScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Obx(() {
-            final imageUrl = controller.userProfileImage.value;
+            // ✅ Use GlobalProfileController for consistent image across all screens
+            final imageUrl = GlobalProfileController.instance.profileImageUrl.value;
             return Container(
               width: 50.w,
               height: 50.h,
@@ -484,7 +488,10 @@ class HomeScreen extends StatelessWidget {
                 ),
                 Obx(
                   () => Text(
-                    controller.userName.value,
+                    // ✅ Use GlobalProfileController for consistent name
+                    GlobalProfileController.instance.userName.value.isNotEmpty
+                        ? GlobalProfileController.instance.userName.value
+                        : controller.userName.value,
                     style: AppFonts.poppinsSemiBold(
                       fontSize: 14.sp,
                       color: AppColors.whiteColor,

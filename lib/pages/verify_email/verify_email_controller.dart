@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:austin_small_talk/core/app_route/app_path.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -114,6 +115,9 @@ class VerifyEmailController extends GetxController {
       return;
     }
 
+    // Track if verification API call succeeded
+    bool verificationSucceeded = false;
+    
     try {
       isLoading.value = true;
 
@@ -128,20 +132,67 @@ class VerifyEmailController extends GetxController {
       // Call API
       final response = await _apiServices.verifyOtp(request);
 
+      // ✅ Mark verification as successful (API returned success)
+      verificationSucceeded = true;
+      print('');
+      print('╔═══════════════════════════════════════════════════════════╗');
+      print('║          OTP VERIFICATION SUCCESSFUL                       ║');
+      print('╚═══════════════════════════════════════════════════════════╝');
+      print('📦 Response Details:');
+      print('   message: ${response.message}');
+      print('   accessToken: ${response.accessToken != null ? "Present (${response.accessToken!.length} chars)" : "NULL ❌"}');
+      print('   refreshToken: ${response.refreshToken != null ? "Present (${response.refreshToken!.length} chars)" : "NULL"}');
+      print('   userId: ${response.userId}');
+      print('   userName: ${response.userName}');
+      print('   email: ${response.email}');
+      
+      if (response.accessToken != null) {
+        print('   Token preview: ${response.accessToken!.substring(0, min(50, response.accessToken!.length))}...');
+      }
+
       // Save user session if tokens are provided
       if (response.accessToken != null && response.accessToken!.isNotEmpty) {
-        print('✅ Access token received, saving session...');
-        await SharedPreferencesUtil.saveUserSession(
+        print('');
+        print('💾 Saving user session...');
+        final saved = await SharedPreferencesUtil.saveUserSession(
           accessToken: response.accessToken!,
           refreshToken: response.refreshToken,
           userId: response.userId,
           userName: response.userName,
           email: response.email ?? email.value,
         );
-        print('✅ User session saved successfully');
+        
+        if (saved) {
+          print('✅ User session saved successfully');
+          
+          // Immediately verify what was saved
+          final verifyToken = SharedPreferencesUtil.getAccessToken();
+          final verifyLoggedIn = SharedPreferencesUtil.isLoggedIn();
+          final verifyUserId = SharedPreferencesUtil.getUserId();
+          
+          print('');
+          print('🔍 Immediate Verification:');
+          print('   isLoggedIn: $verifyLoggedIn');
+          print('   hasToken: ${verifyToken != null}');
+          print('   tokenLength: ${verifyToken?.length ?? 0}');
+          print('   userId: $verifyUserId');
+          
+          if (verifyToken != null && verifyToken.isNotEmpty) {
+            print('   tokenPreview: ${verifyToken.substring(0, min(50, verifyToken.length))}...');
+            print('✅ TOKEN SUCCESSFULLY SAVED AND RETRIEVED!');
+          } else {
+            print('❌ ERROR: Token was NOT saved properly!');
+          }
+        } else {
+          print('❌ Failed to save user session!');
+        }
       } else {
-        print('⚠️ No access token in OTP verification response');
+        print('');
+        print('⚠️⚠️⚠️ NO ACCESS TOKEN IN RESPONSE ⚠️⚠️⚠️');
+        print('Full response: ${response.toJson()}');
+        print('This means user will NOT be authenticated!');
       }
+      print('═══════════════════════════════════════════════════════════');
 
       // Show success message
       if (context.mounted) {
@@ -157,47 +208,59 @@ class VerifyEmailController extends GetxController {
 
       // Navigate to Verified Screen (SIGNUP FLOW)
       if (context.mounted) {
-        context.go(AppPath.verifiedfromverifyemail);
+        print('🔄 Navigating to verified screen...');
+        context.push(AppPath.verifiedfromverifyemail);
+        print('✅ Navigation to verified screen initiated');
       }
     } catch (e) {
-      String errorMessage = e.toString().replaceAll('Exception: ', '');
-      
-      if (!context.mounted) return;
-      
-      // Check specific error types
-      if (errorMessage.toLowerCase().contains('invalid') && 
-          errorMessage.toLowerCase().contains('otp')) {
-        CustomSnackbar.error(
-          context: context,
-          title: 'Invalid OTP',
-          message: 'The code you entered is incorrect. Please try again.',
-        );
-      } else if (errorMessage.toLowerCase().contains('expired') && 
-                 errorMessage.toLowerCase().contains('otp')) {
-        CustomSnackbar.error(
-          context: context,
-          title: 'OTP Expired',
-          message: 'The verification code has expired. Please request a new one.',
-        );
-      } else if (errorMessage.toLowerCase().contains('already') && 
-                 errorMessage.toLowerCase().contains('verified')) {
-        // For signup, if already verified, send to login
-        CustomSnackbar.info(
-          context: context,
-          title: 'Already Verified',
-          message: 'This account is already verified. Please login.',
-        );
+      // ✅ Only show error if verification actually failed
+      // Don't show error if verification succeeded but navigation threw exception
+      if (!verificationSucceeded) {
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
         
-        await Future.delayed(const Duration(seconds: 2));
-        if (context.mounted) {
-          context.go(AppPath.login);
+        print('❌ Verification failed: $errorMessage');
+        
+        if (!context.mounted) return;
+        
+        // Check specific error types
+        if (errorMessage.toLowerCase().contains('invalid') && 
+            errorMessage.toLowerCase().contains('otp')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Invalid OTP',
+            message: 'The code you entered is incorrect. Please try again.',
+          );
+        } else if (errorMessage.toLowerCase().contains('expired') && 
+                   errorMessage.toLowerCase().contains('otp')) {
+          CustomSnackbar.error(
+            context: context,
+            title: 'OTP Expired',
+            message: 'The verification code has expired. Please request a new one.',
+          );
+        } else if (errorMessage.toLowerCase().contains('already') && 
+                   errorMessage.toLowerCase().contains('verified')) {
+          // For signup, if already verified, send to login
+          CustomSnackbar.info(
+            context: context,
+            title: 'Already Verified',
+            message: 'This account is already verified. Please login.',
+          );
+          
+          await Future.delayed(const Duration(seconds: 2));
+          if (context.mounted) {
+            context.push(AppPath.login);
+          }
+        } else {
+          CustomSnackbar.error(
+            context: context,
+            title: 'Verification Failed',
+            message: errorMessage,
+          );
         }
       } else {
-        CustomSnackbar.error(
-          context: context,
-          title: 'Verification Failed',
-          message: errorMessage,
-        );
+        // Verification succeeded but something else failed (like navigation)
+        // Don't show error - user is already verified and will see success message
+        print('⚠️ Post-verification error (ignored): ${e.toString()}');
       }
     } finally {
       isLoading.value = false;

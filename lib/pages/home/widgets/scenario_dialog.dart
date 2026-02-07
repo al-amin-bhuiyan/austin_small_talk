@@ -25,7 +25,7 @@ class ScenarioDialog extends StatelessWidget {
      insetPadding: EdgeInsets.symmetric(horizontal: 24.w),
       child: Container(
         width: double.infinity,
-        height: 310.h,
+        height: 330.h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24.r),
           image: DecorationImage(
@@ -41,7 +41,7 @@ class ScenarioDialog extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 10.h),
                   
                   // Scenario Icon - Handle both emoji and SVG
                   Container(
@@ -52,7 +52,7 @@ class ScenarioDialog extends StatelessWidget {
                     ),
                   ),
                   
-                  SizedBox(height: 10.h),
+                  SizedBox(height: 5.h),
                   
                   // Title
                   Text(

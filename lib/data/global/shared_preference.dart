@@ -13,6 +13,7 @@ class SharedPreferencesUtil {
   static const String _keyRefreshToken = 'refresh';
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = 'user_name';
+  static const String _keyUserImage = 'user_image';
 
   /// Initialize shared preferences
   static Future<void> init() async {
@@ -73,6 +74,30 @@ class SharedPreferencesUtil {
 
   // ==================== Session Related ====================
 
+  /// Clear previous user's data (call before new user signs up/logs in)
+  static Future<void> clearPreviousUserData() async {
+    print('🧹 Clearing previous user data...');
+    
+    // Keep remember me credentials
+    final rememberMe = isRememberMeEnabled();
+    final savedEmail = getSavedEmail();
+    final savedPassword = getSavedPassword();
+    
+    // Remove session data but keep remember me
+    await instance.remove(_keyAccessToken);
+    await instance.remove(_keyRefreshToken);
+    await instance.remove(_keyUserId);
+    await instance.remove(_keyUserName);
+    await instance.setBool(_keyIsLoggedIn, false);
+    
+    // Restore Remember Me if it was enabled
+    if (rememberMe && savedEmail != null && savedPassword != null) {
+      await saveLoginCredentials(email: savedEmail, password: savedPassword);
+    }
+    
+    print('✅ Previous user data cleared');
+  }
+
   /// Save user session after successful login
   static Future<bool> saveUserSession({
     required String accessToken,
@@ -80,24 +105,77 @@ class SharedPreferencesUtil {
     int? userId,
     String? userName,
     String? email,
+    String? userImage,
   }) async {
     try {
+      print('');
+      print('╔═══════════════════════════════════════════════════════════╗');
+      print('║              SAVING USER SESSION                           ║');
+      print('╚═══════════════════════════════════════════════════════════╝');
+      print('📝 Received:');
+      print('   accessToken: ${accessToken.substring(0, 20)}... (${accessToken.length} chars)');
+      print('   refreshToken: ${refreshToken != null ? "Present" : "NULL"}');
+      print('   userId: $userId');
+      print('   userName: $userName');
+      print('   email: $email');
+      
+      // ✅ Clear any previous user's data first
+      final previousUserId = getUserId();
+      final newUserId = userId;
+      
+      // If different user is logging in, clear old data
+      if (previousUserId != null && newUserId != null && previousUserId != newUserId) {
+        print('🔄 Different user detected (old: $previousUserId, new: $newUserId)');
+        await clearPreviousUserData();
+      }
+      
+      print('💾 Saving to SharedPreferences...');
       await instance.setString(_keyAccessToken, accessToken);
+      print('   ✅ Access token saved');
+      
       if (refreshToken != null) {
         await instance.setString(_keyRefreshToken, refreshToken);
+        print('   ✅ Refresh token saved');
       }
       if (userId != null) {
         await instance.setInt(_keyUserId, userId);
+        print('   ✅ User ID saved');
       }
       if (userName != null) {
         await instance.setString(_keyUserName, userName);
+        print('   ✅ User name saved');
       }
       if (email != null) {
         await instance.setString(_keyEmail, email);
+        print('   ✅ Email saved');
       }
+      
+      // ✅ Save user image to the key that GlobalProfileController expects
+      if (userImage != null && userImage.isNotEmpty) {
+        await instance.setString('profile_image', userImage);
+        print('   ✅ User image saved to profile_image: $userImage');
+      }
+      
       await instance.setBool(_keyIsLoggedIn, true);
+      print('   ✅ isLoggedIn flag set to true');
+      
+      // Verify saved data
+      print('');
+      print('🔍 Verifying saved data:');
+      final savedToken = instance.getString(_keyAccessToken);
+      final savedLoggedIn = instance.getBool(_keyIsLoggedIn);
+      final savedUserId = instance.getInt(_keyUserId);
+      print('   Token exists: ${savedToken != null}');
+      print('   Token length: ${savedToken?.length ?? 0}');
+      print('   isLoggedIn: $savedLoggedIn');
+      print('   userId: $savedUserId');
+      
+      print('✅ User session saved for user: $userName (ID: $userId)');
+      print('═══════════════════════════════════════════════════════════');
       return true;
     } catch (e) {
+      print('❌ Error saving user session: $e');
+      print('═══════════════════════════════════════════════════════════');
       return false;
     }
   }
@@ -125,6 +203,11 @@ class SharedPreferencesUtil {
   /// Get user email
   static String? getUserEmail() {
     return instance.getString(_keyEmail);
+  }
+
+  /// Get user image
+  static String? getUserImage() {
+    return instance.getString(_keyUserImage);
   }
 
   /// Check if user is logged in

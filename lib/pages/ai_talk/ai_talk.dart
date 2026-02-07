@@ -7,7 +7,8 @@ import '../../core/custom_assets/custom_assets.dart';
 import '../../utils/app_colors/app_colors.dart';
 import '../../utils/app_fonts/app_fonts.dart';
 import '../profile/profile_controller.dart';
-import 'ai_talk_controller.dart';
+import 'ai_talk_controller.dart' hide AiTalkBlobController;
+import 'ai_talk_blob_controller.dart';
 
 class AiTalkScreen extends StatefulWidget {
   const AiTalkScreen({Key? key}) : super(key: key);
@@ -16,32 +17,56 @@ class AiTalkScreen extends StatefulWidget {
   State<AiTalkScreen> createState() => _AiTalkScreenState();
 }
 
-class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClientMixin {
-  late AiTalkController controller;
-  
+class _AiTalkScreenState extends State<AiTalkScreen>
+    with AutomaticKeepAliveClientMixin {
+
   @override
   bool get wantKeepAlive => true;
-  
+
+  late final AiTalkController _aitalkController;
+  late final AiTalkBlobController _blobController;
+
   @override
   void initState() {
     super.initState();
-    // Get or create controller - will trigger animation immediately
-    try {
-      controller = Get.find<AiTalkController>();
-    } catch (e) {
-      controller = Get.put(AiTalkController());
+
+    // ✅ Initialize AiTalkController (if not already registered)
+    if (!Get.isRegistered<AiTalkController>()) {
+      _aitalkController = Get.put(AiTalkController(), tag: 'aitalk');
+    } else {
+      _aitalkController = Get.find<AiTalkController>();
     }
+
+    // ✅ Initialize AiTalkBlobController (starts breathing animation)
+    if (!Get.isRegistered<AiTalkBlobController>()) {
+      _blobController = Get.put(AiTalkBlobController(), tag: 'aitalkblob');
+    } else {
+      _blobController = Get.find<AiTalkBlobController>();
+    }
+
+    // ✅ VoiceChatController is now global - no need to initialize here
+  }
+
+  @override
+  void dispose() {
+    // ✅ Clean up blob controller
+    if (Get.isRegistered<AiTalkBlobController>(tag: 'aitalkblob')) {
+      Get.delete<AiTalkBlobController>(tag: 'aitalkblob');
+    }
+
+    // ✅ VoiceChatController is global - don't dispose it here
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Background image covering full screen
+          // Background image
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -52,24 +77,22 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
               ),
             ),
           ),
+
           // Main content
           SafeArea(
             bottom: false,
             child: Column(
               children: [
-                // App Bar
                 _buildAppBar(context),
-
-                // Main Content
                 Expanded(
                   child: Column(
                     children: [
                       SizedBox(height: 20.h),
-                      _buildGreeting_name(),
+                      _buildGreetingName(),
                       SizedBox(height: 3.h),
                       _buildGreeting(),
                       SizedBox(height: 80.h),
-                      _buildAICircle(context, controller),
+                      _buildAnimatedBlob(),
                       SizedBox(height: 230.h),
                     ],
                   ),
@@ -77,7 +100,8 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
               ],
             ),
           ),
-          // Text field and nav bar at bottom
+
+          // Bottom button
           Positioned(
             left: 0,
             right: 0,
@@ -85,9 +109,7 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Text field with voice icon
-                _buildMessageInput(context, controller),
-                // ✅ Nav bar removed - MainNavigation provides it
+                _buildMessageInput(context),
                 SizedBox(height: MediaQuery.of(context).padding.bottom),
               ],
             ),
@@ -102,7 +124,6 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
       padding: EdgeInsets.symmetric(horizontal: 80.w, vertical: 15.h),
       child: Row(
         children: [
-
           Expanded(
             child: Text(
               'AI Talk',
@@ -113,16 +134,15 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
               ),
             ),
           ),
-          SizedBox(width: 40.w), // Balance for back button
+          SizedBox(width: 40.w),
         ],
       ),
     );
   }
 
-  Widget _buildGreeting_name() {
-    // Get ProfileController to access username
+  Widget _buildGreetingName() {
     final profileController = Get.find<ProfileController>();
-    
+
     return Padding(
       padding: EdgeInsets.only(left: 16.w),
       child: Row(
@@ -133,19 +153,16 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
             color: AppColors.whiteColor.withValues(alpha: 0.8),
             size: 20.sp,
           ),
-          Obx(
-            () {
-              final fullName = profileController.userName.value;
-              
-              return Text(
-                ' Hi $fullName  ',
-                style: AppFonts.poppinsRegular(
-                  fontSize: 16.sp,
-                  color: AppColors.whiteColor.withValues(alpha: 0.8),
-                ),
-              );
-            },
-          ),
+          Obx(() {
+            final fullName = profileController.userName.value;
+            return Text(
+              ' Hi $fullName  ',
+              style: AppFonts.poppinsRegular(
+                fontSize: 16.sp,
+                color: AppColors.whiteColor.withValues(alpha: 0.8),
+              ),
+            );
+          }),
           SizedBox(height: 4.h),
         ],
       ),
@@ -174,127 +191,80 @@ class _AiTalkScreenState extends State<AiTalkScreen> with AutomaticKeepAliveClie
           stopPauseOnTap: false,
           isRepeatingAnimation: false,
           repeatForever: false,
-          onTap: () {
-            print('Text animation tapped');
-          },
         ),
       ),
     );
   }
 
-  Widget _buildAICircle(BuildContext context, AiTalkController controller) {
-    return GetBuilder<AiTalkController>(
-      id: 'waveBlob', // Specific ID for targeted updates
-      builder: (ctrl) {
-        return RepaintBoundary(
+  Widget _buildAnimatedBlob() {
+    return GetBuilder<AiTalkBlobController>(
+      tag: 'aitalkblob',
+      builder: (blobController) {
+        return Obx(() => AnimatedScale(
+          scale: blobController.blobScale.value,
+          duration: const Duration(milliseconds: 1500),
+          curve: Curves.easeInOut,
           child: SizedBox(
-            width: 310.w,
-            height: 310.h,
-            child: WaveBlob(
-              blobCount: 3,
-              amplitude: ctrl.waveAmplitude,
-              scale: ctrl.waveScale,
-              autoScale: ctrl.autoScale,
-              centerCircle: true,
-              overCircle: false,
-              circleColors: const [Colors.transparent],
-              colors: const [Color(0x996B8CFF), Color(0xFF4B006E)],
-              child: Center(
-                child: Image.asset(
-                  CustomAssets.ai_talk_image,
-                  width: 210.w,
-                  height: 210.h,
-                  fit: BoxFit.contain,
+            width: 300.w,
+            height: 300.h,
+            child: Center(
+              child: SizedBox(
+                width: 300.w,
+                height: 300.h,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // WaveBlob
+                    WaveBlob(
+                      blobCount: 3,
+                      amplitude: _aitalkController.waveAmplitude,
+                      scale: _aitalkController.waveScale,
+                      autoScale: _aitalkController.autoScale,
+                      centerCircle: true,
+                      overCircle: false,
+                      circleColors: const [Colors.transparent],
+                      colors: const [
+                        Color(0x996B8CFF),
+                        Color(0xFF4B006E),
+                      ],
+                      child: Container(),
+                    ),
+
+                    // AI Image
+                    Container(
+                      width: 250.w,
+                      height: 250.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        image: DecorationImage(
+                          image: AssetImage(CustomAssets.ai_talk_image),
+                          fit: BoxFit.cover,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6B8CFF).withValues(alpha: 0.4),
+                            blurRadius: 50,
+                            offset: const Offset(0, 25),
+                            spreadRadius: -1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
 
-
-  Widget _buildMessageInput(BuildContext context, AiTalkController controller) {
-    // Commented out message input - replaced with Create Scenario button
-    // return Container(
-    //   padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-    //   child: Row(
-    //     children: [
-    //       Expanded(
-    //         child: Container(
-    //           decoration: BoxDecoration(
-    //             color: AppColors.blackColor.withValues(alpha: 0.56),
-    //             borderRadius: BorderRadius.circular(25.r),
-    //             border: Border.all(
-    //               color: AppColors.whiteColor.withValues(alpha: 0.2),
-    //               width: 1,
-    //             ),
-    //           ),
-    //           child: TextField(
-    //             controller: controller.textController,
-    //             focusNode: controller.textFocusNode,
-    //             style: AppFonts.poppinsRegular(
-    //               fontSize: 14,
-    //               color: AppColors.whiteColor,
-    //             ),
-    //             decoration: InputDecoration(
-    //               hintText: 'Type your message...',
-    //               hintStyle: AppFonts.poppinsRegular(
-    //                 fontSize: 14,
-    //                 color: AppColors.whiteColor.withValues(alpha: 0.5),
-    //               ),
-    //               border: InputBorder.none,
-    //               contentPadding: EdgeInsets.symmetric(
-    //                 horizontal: 20.w,
-    //                 vertical: 12.h,
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //       SizedBox(width: 12.w),
-    //       Obx(
-    //         () => GestureDetector(
-    //           onTap: () {
-    //             if (controller.textFocusNode.hasFocus || controller.hasText.value) {
-    //               // Send message when focused or has text
-    //               controller.onSendPressed(context);
-    //             } else {
-    //               // Navigate to voice chat screen
-    //               controller.goToVoiceChat(context);
-    //             }
-    //           },
-    //           child: Container(
-    //             width: 48.w,
-    //             height: 48.h,
-    //             decoration: BoxDecoration(
-    //               color: (controller.textFocusNode.hasFocus || controller.hasText.value)
-    //                   ? const Color(0xFF4B006E)
-    //                   : AppColors.whiteColor.withValues(alpha: 0.2),
-    //               shape: BoxShape.circle,
-    //             ),
-    //             child: Center(
-    //               child: SvgPicture.asset(
-    //                 (controller.textFocusNode.hasFocus || controller.hasText.value)
-    //                     ? CustomAssets.send_icon
-    //                     : CustomAssets.voice_icon,
-    //                 width: 48.w,
-    //                 height: 48.h,
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //     ],
-    //   ),
-    // );
-
-    // Create a Scenario Button
+  Widget _buildMessageInput(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       child: GestureDetector(
-        onTap: () => controller.goToCreateScenario(context),
+        onTap: () => _aitalkController.goToCreateScenario(context),
         child: Container(
           width: double.infinity,
           height: 56.h,
