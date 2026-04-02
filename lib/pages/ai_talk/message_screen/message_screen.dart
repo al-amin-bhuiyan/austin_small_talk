@@ -1,4 +1,3 @@
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:austin_small_talk/core/global/profile_controller.dart';
 import 'package:austin_small_talk/data/global/scenario_data.dart';
 import 'package:flutter/material.dart';
@@ -22,11 +21,15 @@ class MessageScreen extends StatefulWidget {
 
 class _MessageScreenState extends State<MessageScreen> {
   late final MessageScreenController controller;
+  late final ScrollController _scrollController;
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
+    
+    // ✅ Initialize scroll controller for auto-scroll
+    _scrollController = ScrollController();
 
     print('═══════════════════════════════════════════');
     print('🎬 MESSAGE SCREEN initState() CALLED');
@@ -82,8 +85,10 @@ class _MessageScreenState extends State<MessageScreen> {
         if (!_initialized && mounted) {
           _initialized = true;
           print('✅ Calling controller.setScenarioData()...');
-          // Just pass scenario data - controller will handle storage/API logic
           controller.setScenarioData(actualScenarioData!);
+          
+          // ✅ Scroll to bottom after messages load
+          _scrollToBottom();
         } else {
           print('⚠️ Skipped setScenarioData (already initialized or not mounted)');
         }
@@ -93,8 +98,31 @@ class _MessageScreenState extends State<MessageScreen> {
     }
   }
 
+  /// ✅ Scroll to bottom of messages list
+  void _scrollToBottom({bool animated = true}) {
+    if (!_scrollController.hasClients) return;
+    
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients && mounted) {
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        if (maxScroll > 0) {
+          if (animated) {
+            _scrollController.animateTo(
+              maxScroll,
+              duration: Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          } else {
+            _scrollController.jumpTo(maxScroll);
+          }
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _scrollController.dispose();
     // Don't delete controller here - let GetX handle it
     super.dispose();
   }
@@ -225,7 +253,13 @@ class _MessageScreenState extends State<MessageScreen> {
         }
 
         // Show messages list with optimizations
+        // ✅ Auto-scroll to bottom when messages change
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom(animated: false);
+        });
+
         return ListView.builder(
+          controller: _scrollController, // ✅ Attach scroll controller
           padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
           itemCount: controller.messages.length,
           // Performance optimization: provide estimated height
@@ -246,11 +280,6 @@ class _MessageScreenState extends State<MessageScreen> {
   Widget _buildMessageBubble(ChatMessage message, int index) {
     // Format timestamp
     final timeString = _formatMessageTime(message.timestamp);
-
-    // Check animation state ONCE - not with Obx
-    final shouldAnimate = !message.isUser && 
-                         controller.latestAiMessageId.value == message.id &&
-                         !controller.animatedMessageIds.contains(message.id);
 
     return Padding(
       padding: EdgeInsets.only(bottom: 16.h),
@@ -305,47 +334,15 @@ class _MessageScreenState extends State<MessageScreen> {
                       bottomRight: message.isUser ? Radius.circular(4.r) : Radius.circular(16.r),
                     ),
                   ),
-                    child: message.isUser
-                        ? Text(
-                      message.text,
-                      style: AppFonts.poppinsRegular(
-                        fontSize: 14,
-                        color: AppColors.whiteColor,
-                        height: 1.4,
-                      ),
-                    )
-                        : shouldAnimate
-                        ? AnimatedTextKit(
-                            key: ValueKey(message.id), // Force rebuild when message changes
-                            animatedTexts: [
-                              TypewriterAnimatedText(
-                                message.text,
-                                textStyle: AppFonts.poppinsRegular(
-                                  fontSize: 14,
-                                  color: AppColors.whiteColor,
-                                  height: 1.4,
-                                ),
-                                speed: const Duration(milliseconds: 15), // ✅ 2.7x faster (was 40ms)
-                              ),
-                            ],
-                            totalRepeatCount: 1,
-                            displayFullTextOnTap: true,
-                            stopPauseOnTap: false,
-                            onFinished: () {
-                              // Ensure it's marked as animated after completion
-                              controller.animatedMessageIds.add(message.id);
-                            },
-                          )
-                        : Text(
-                            message.text,
-                            style: AppFonts.poppinsRegular(
-                              fontSize: 14,
-                              color: AppColors.whiteColor,
-                              height: 1.4,
-                            ),
-                          ),
-
-
+                  // ✅ NO ANIMATION - All messages show instantly
+                  child: Text(
+                    message.text,
+                    style: AppFonts.poppinsRegular(
+                      fontSize: 14,
+                      color: AppColors.whiteColor,
+                      height: 1.4,
+                    ),
+                  ),
                 ),
               ),
 
